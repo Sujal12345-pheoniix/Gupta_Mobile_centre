@@ -1,0 +1,6 @@
+packages:
+  - apps/api
+  - apps/admin-web
+  - apps/staff-mobile
+  - packages/*
+  - infrastructure/*

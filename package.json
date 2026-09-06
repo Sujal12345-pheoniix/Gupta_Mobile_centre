@@ -1,0 +1,35 @@
+{
+  "private": true,
+  "name": "gupta-mobile-centre",
+  "version": "0.0.1",
+  "description": "Retail Management Platform for Gupta Mobile Centre",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:api": "pnpm --filter gupta-mobile-api dev",
+    "dev:admin": "pnpm --filter gupta-admin-web dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "type-check": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:migrate": "cd apps/api && npx prisma migrate dev --schema=../../prisma/schema.prisma",
+    "db:generate": "cd apps/api && npx prisma generate --schema=../../prisma/schema.prisma",
+    "db:studio": "cd apps/api && npx prisma studio --schema=../../prisma/schema.prisma",
+    "db:seed": "cd apps/api && npx ts-node ../../scripts/seed.ts"
+  },
+  "devDependencies": {
+    "@prisma/client": "5.22.0",
+    "bcryptjs": "^3.0.3",
+    "prisma": "5.22.0"
+  },
+  "workspaces": [
+    "apps/api",
+    "apps/admin-web",
+    "apps/staff-mobile",
+    "packages/database",
+    "packages/types",
+    "packages/validation",
+    "packages/utils",
+    "packages/config",
+    "packages/ui"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@gupta-mobile/config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.3"
+  }
+}

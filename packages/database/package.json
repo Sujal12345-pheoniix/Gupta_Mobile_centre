@@ -1,0 +1,12 @@
+{
+  "name": "gupta-mobile-database",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "prebuild": "npx prisma generate",
+    "build": "tsc -p tsconfig.json",
+    "migrate:dev": "npx prisma migrate dev",
+    "migrate:deploy": "npx prisma migrate deploy",
+    "studio": "npx prisma studio"
+  }
+}
