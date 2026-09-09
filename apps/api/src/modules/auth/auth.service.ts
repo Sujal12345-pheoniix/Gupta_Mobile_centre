@@ -66,10 +66,11 @@ export class AuthService {
         OR: [
           email ? { email } : undefined,
           phone ? { phone } : undefined,
-        ].filter(Boolean),
+        ].filter(Boolean) as any,
       },
       include: {
         organization: true,
+        employee: true,
         roles: {
           include: {
             role: {
@@ -105,9 +106,9 @@ export class AuthService {
     });
 
     // Extract roles and permissions
-    const roleIds = user.roles.map((ur) => ur.roleId);
-    const permissions = user.roles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => rp.permission.key),
+    const roleIds = user.roles.map((ur: any) => ur.roleId as string);
+    const permissions = user.roles.flatMap((ur: any) =>
+      ur.role.permissions.map((rp: any) => rp.permission.key as string),
     );
 
     const authUser: AuthUser = {
@@ -117,8 +118,8 @@ export class AuthService {
       name: user.employee?.name || user.email || user.phone || 'User',
       organizationId: user.organizationId,
       organizationName: user.organization.name,
-      roles: [],
-      permissions: [...new Set(permissions)],
+      roles: user.roles.map((ur: any) => ur.role.name as string),
+      permissions: [...new Set(permissions)] as string[],
     };
 
     const tokens = await this.generateTokens(authUser, roleIds);
@@ -135,7 +136,7 @@ export class AuthService {
         OR: [
           email ? { email } : undefined,
           phone ? { phone } : undefined,
-        ].filter(Boolean),
+        ].filter(Boolean) as any,
       },
     });
 
@@ -253,6 +254,7 @@ export class AuthService {
         where: { id: payload.sub },
         include: {
           organization: true,
+          employee: true,
           roles: {
             include: {
               role: {
@@ -271,9 +273,9 @@ export class AuthService {
         throw new UnauthorizedException('User not found or inactive');
       }
 
-      const roleIds = user.roles.map((ur) => ur.roleId);
-      const permissions = user.roles.flatMap((ur) =>
-        ur.role.permissions.map((rp) => rp.permission.key),
+      const roleIds = user.roles.map((ur: any) => ur.roleId as string);
+      const permissions = user.roles.flatMap((ur: any) =>
+        ur.role.permissions.map((rp: any) => rp.permission.key as string),
       );
 
       const authUser: AuthUser = {
@@ -283,8 +285,8 @@ export class AuthService {
         name: user.employee?.name || user.email || 'User',
         organizationId: user.organizationId,
         organizationName: user.organization.name,
-        roles: [],
-        permissions: [...new Set(permissions)],
+        roles: user.roles.map((ur: any) => ur.role.name as string),
+        permissions: [...new Set(permissions)] as string[],
       };
 
       return this.generateTokens(authUser, roleIds);
@@ -329,8 +331,8 @@ export class AuthService {
       return null;
     }
 
-    const permissions = user.roles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => rp.permission.key),
+    const permissions = user.roles.flatMap((ur: any) =>
+      ur.role.permissions.map((rp: any) => rp.permission.key as string),
     );
 
     return {
@@ -340,8 +342,8 @@ export class AuthService {
       name: user.employee?.name || user.email || 'User',
       organizationId: user.organizationId,
       organizationName: user.organization.name,
-      roles: user.roles.map((ur) => ur.role.name),
-      permissions: [...new Set(permissions)],
+      roles: user.roles.map((ur: any) => ur.role.name as string),
+      permissions: [...new Set(permissions)] as string[],
     };
   }
 
@@ -369,8 +371,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const permissions = user.roles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => rp.permission.key),
+    const permissions = user.roles.flatMap((ur: any) =>
+      ur.role.permissions.map((rp: any) => rp.permission.key as string),
     );
 
     return {
@@ -380,8 +382,8 @@ export class AuthService {
       name: user.employee?.name || user.email || 'User',
       organizationId: user.organizationId,
       organizationName: user.organization.name,
-      roles: user.roles.map((ur) => ur.role.name),
-      permissions: [...new Set(permissions)],
+      roles: user.roles.map((ur: any) => ur.role.name as string),
+      permissions: [...new Set(permissions)] as string[],
     };
   }
 

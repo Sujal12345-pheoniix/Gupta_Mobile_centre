@@ -11,7 +11,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard, RequirePermissions } from '../auth/guards/permissions.guard';
 import { RbacService } from './rbac.service';
-import { CreateRoleDto, UpdateRoleDto, AssignRoleDto } from './dto';
+import { CreateRoleInput, UpdateRoleInput, AssignRoleInput } from './dto';
 
 @Controller('rbac')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -36,14 +36,14 @@ export class RbacController {
 
   @Post('roles')
   @RequirePermissions('roles.manage')
-  async createRole(@Body() input: CreateRoleDto) {
+  async createRole(@Body() input: CreateRoleInput) {
     const data = await this.rbacService.createRole('system', input);
     return { success: true, data };
   }
 
   @Patch('roles/:id')
   @RequirePermissions('roles.manage')
-  async updateRole(@Param('id') id: string, @Body() input: UpdateRoleDto) {
+  async updateRole(@Param('id') id: string, @Body() input: UpdateRoleInput) {
     const data = await this.rbacService.updateRole(id, input);
     return { success: true, data };
   }
@@ -70,7 +70,7 @@ export class RbacController {
   @RequirePermissions('roles.manage')
   async assignRoleToUser(
     @Param('userId') userId: string,
-    @Body() input: AssignRoleDto,
+    @Body() input: AssignRoleInput,
   ) {
     const data = await this.rbacService.assignRoleToUser(userId, input);
     return { success: true, data };

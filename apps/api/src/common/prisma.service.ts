@@ -7,11 +7,19 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error: any) {
+      console.warn('⚠️ [PrismaService] Database connection warning:', error?.message || error);
+    }
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    try {
+      await this.$disconnect();
+    } catch {
+      // Ignore disconnect errors on shutdown
+    }
   }
 
   /**
@@ -28,9 +36,9 @@ export class PrismaService
     >`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
 
     const tables = tablenames
-      .map(({ tablename }) => tablename)
-      .filter((name) => name !== '_prisma_migrations')
-      .map((name) => `"public"."${name}"`)
+      .map(({ tablename }: { tablename: string }) => tablename)
+      .filter((name: string) => name !== '_prisma_migrations')
+      .map((name: string) => `"public"."${name}"`)
       .join(', ');
 
     if (tables.length > 0) {

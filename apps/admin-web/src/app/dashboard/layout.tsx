@@ -1,28 +1,39 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/dashboard/products', label: 'Products', icon: '📦' },
-  { href: '/dashboard/inventory', label: 'Inventory', icon: '📋' },
-  { href: '/dashboard/sales', label: 'Sales', icon: '💰' },
-  { href: '/dashboard/purchases', label: 'Purchases', icon: '🛒' },
-  { href: '/dashboard/customers', label: 'Customers', icon: '👥' },
-  { href: '/dashboard/employees', label: 'Employees', icon: '👤' },
-  { href: '/dashboard/reports', label: 'Reports', icon: '📈' },
-  { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  roles: string[]; // which roles can see this item; empty = all
+}
+
+const ALL_ROLES = ['Admin', 'Manager', 'Staff', 'Technician'];
+
+const navItems: NavItem[] = [
+  { href: '/dashboard',            label: 'Dashboard',  icon: '📊', roles: ALL_ROLES },
+  { href: '/dashboard/products',   label: 'Products',   icon: '📦', roles: ALL_ROLES },
+  { href: '/dashboard/inventory',  label: 'Inventory',  icon: '📋', roles: ALL_ROLES },
+  { href: '/dashboard/sales',      label: 'Sales',      icon: '💰', roles: ['Admin', 'Manager', 'Staff'] },
+  { href: '/dashboard/purchases',  label: 'Purchases',  icon: '🛒', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/customers',  label: 'Customers',  icon: '👥', roles: ['Admin', 'Manager', 'Staff'] },
+  { href: '/dashboard/employees',  label: 'Employees',  icon: '👤', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/reports',    label: 'Reports',    icon: '📈', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/settings',   label: 'Settings',   icon: '⚙️',  roles: ['Admin'] },
 ];
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const roleColors: Record<string, string> = {
+  Admin: 'bg-purple-100 text-purple-700',
+  Manager: 'bg-blue-100 text-blue-700',
+  Staff: 'bg-green-100 text-green-700',
+  Technician: 'bg-orange-100 text-orange-700',
+};
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -39,67 +50,64 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
-  if (isLoading) {
+  if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-500">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center p-6 bg-slate-800/80 rounded-2xl shadow-xl border border-slate-700">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-sm font-medium text-slate-300">
+            {isLoading ? 'Verifying session...' : 'Redirecting to sign-in...'}
+          </p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  const userRole = user?.roles?.[0] || 'Staff';
+  const visibleNav = navItems.filter(item => item.roles.includes(userRole));
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Mobile sidebar toggle */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
-        >
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-md text-gray-600 hover:bg-gray-100">
           <span className="text-2xl">☰</span>
         </button>
         <span className="font-semibold text-gray-900">Gupta Mobile Centre</span>
-        <div className="w-10" /> {/* Spacer */}
+        <div className="w-10" />
       </div>
 
       {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r transform transition-transform lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
+      <aside className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
           {/* Logo */}
-          <div className="px-6 py-5 border-b">
-            <h1 className="text-xl font-bold text-gray-900">GMC Admin</h1>
-            <p className="text-xs text-gray-500 mt-1">
-              {user?.organizationName || 'Loading...'}
-            </p>
+          <div className="px-5 py-4 border-b">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-2xl">📱</span>
+              <h1 className="text-lg font-bold text-gray-900">GMC Admin</h1>
+            </div>
+            <p className="text-xs text-gray-400">{user?.organizationName || 'Gupta Mobile Centre'}</p>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 overflow-y-auto">
-            <ul className="space-y-1">
-              {navItems.map((item) => {
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            <ul className="space-y-0.5">
+              {visibleNav.map(item => {
                 const isActive = pathname === item.href;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition ${
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition ${
                         isActive
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     >
-                      <span className="mr-3 text-lg">{item.icon}</span>
+                      <span className="mr-3 text-base">{item.icon}</span>
                       {item.label}
+                      {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />}
                     </Link>
                   </li>
                 );
@@ -109,24 +117,22 @@ export default function DashboardLayout({
 
           {/* User section */}
           <div className="border-t p-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.name || 'User'}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {user?.roles?.join(', ') || 'Staff'}
-                </p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'User'}</p>
+                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[userRole] || 'bg-gray-100 text-gray-500'}`}>
+                  {userRole}
+                </span>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="mt-4 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+              className="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition text-left font-medium"
             >
-              Sign out
+              ← Sign out
             </button>
           </div>
         </div>

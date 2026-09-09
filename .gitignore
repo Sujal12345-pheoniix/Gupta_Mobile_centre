@@ -11,3 +11,5 @@ coverage/
 htmlcov/
 *.pyc
 __pycache__/
+*.tsbuildinfo
+

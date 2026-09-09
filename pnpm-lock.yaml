@@ -212,11 +212,22 @@ importers:
         specifier: ^3.21.4
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^20.3.0
+        version: 20.19.43
       typescript:
         specifier: ^5.1.3
         version: 5.9.3
 
-  packages/database: {}
+  packages/database:
+    dependencies:
+      '@prisma/client':
+        specifier: 5.22.0
+        version: 5.22.0
+    devDependencies:
+      typescript:
+        specifier: ^5.1.3
+        version: 5.9.3
 
   packages/types: {}
 

@@ -14,7 +14,7 @@ import { PermissionsGuard, RequirePermissions } from '../auth/guards/permissions
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto';
+import { CreateUserInput, UpdateUserInput, ChangePasswordInput } from './dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -54,7 +54,7 @@ export class UsersController {
   @Post()
   @RequirePermissions('users.create', 'roles.manage')
   async create(
-    @Body() input: CreateUserDto,
+    @Body() input: CreateUserInput,
     @CurrentUser() actor: AuthUser,
     @Query('branchId') branchId?: string,
   ) {
@@ -71,7 +71,7 @@ export class UsersController {
   @RequirePermissions('users.update', 'roles.manage')
   async update(
     @Param('id') id: string,
-    @Body() input: UpdateUserDto,
+    @Body() input: UpdateUserInput,
     @CurrentUser() actor: AuthUser,
   ) {
     const data = await this.usersService.update(
@@ -115,7 +115,7 @@ export class UsersController {
   @RequirePermissions('users.change_password')
   async changePassword(
     @Param('id') id: string,
-    @Body() input: ChangePasswordDto,
+    @Body() input: ChangePasswordInput,
     @CurrentUser() actor: AuthUser,
   ) {
     const data = await this.usersService.changePassword(

@@ -3,10 +3,15 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "prebuild": "npx prisma generate",
     "build": "tsc -p tsconfig.json",
-    "migrate:dev": "npx prisma migrate dev",
-    "migrate:deploy": "npx prisma migrate deploy",
-    "studio": "npx prisma studio"
+    "migrate:dev": "npx prisma migrate dev --schema=../../prisma/schema.prisma",
+    "migrate:deploy": "npx prisma migrate deploy --schema=../../prisma/schema.prisma",
+    "studio": "npx prisma studio --schema=../../prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.3"
   }
 }

@@ -26,9 +26,9 @@ export const Table: React.FC<TableProps<any>> = ({
       <div
         className={[
           'py-8 text-center text-muted-foreground',
-          testId && 'data-testid',
-        ].join(' ').replace('data-testid', `data-testid="${testId}"`)},
-        ...(testId && { 'data-testid': testId }),
+          className,
+        ].filter(Boolean).join(' ')}
+        data-testid={testId}
       >
         {noDataText}
       </div>
@@ -44,7 +44,7 @@ export const Table: React.FC<TableProps<any>> = ({
         <thead>
           <tr>
             {columns.map((col) => (
-              <th key={col.accessorKey} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground border-b">
+              <th key={String(col.accessorKey)} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground border-b">
                 {col.header}
               </th>
             ))}
@@ -54,7 +54,7 @@ export const Table: React.FC<TableProps<any>> = ({
           {data.map((row, index) => (
             <tr key={index} className="border-y hover:bg-accent/5">
               {columns.map((col) => (
-                <td key={col.accessorKey} className="px-4 py-2 text-sm align-middle">
+                <td key={String(col.accessorKey)} className="px-4 py-2 text-sm align-middle">
                   {row[col.accessorKey]}
                 </td>
               ))}

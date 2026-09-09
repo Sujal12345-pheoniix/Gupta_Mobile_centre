@@ -80,7 +80,7 @@ export class UsersService {
         OR: [
           email ? { email } : undefined,
           phone ? { phone } : undefined,
-        ].filter(Boolean),
+        ].filter(Boolean) as any,
       },
     });
 
@@ -166,7 +166,7 @@ export class UsersService {
           OR: [
             email ? { email } : undefined,
             phone ? { phone } : undefined,
-          ].filter(Boolean),
+          ].filter(Boolean) as any,
         },
       });
 

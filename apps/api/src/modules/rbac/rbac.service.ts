@@ -12,7 +12,7 @@ export class RbacService {
 
   // ============ Roles ============
 
-  async getRoles(organizationId: string) {
+  async getRoles(organizationId?: string) {
     return this.prisma.role.findMany({
       include: {
         permissions: {
@@ -245,11 +245,11 @@ export class RbacService {
       },
     });
 
-    const permissions = userRoles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => rp.permission.key),
+    const permissions = userRoles.flatMap((ur: any) =>
+      ur.role.permissions.map((rp: any) => rp.permission.key as string),
     );
 
-    return [...new Set(permissions)];
+    return [...new Set(permissions)] as string[];
   }
 
   async hasPermission(userId: string, permission: string): Promise<boolean> {

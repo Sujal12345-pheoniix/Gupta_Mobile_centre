@@ -9,11 +9,11 @@ import {
 } from '@nestjs/common';
 import { AuthService, AuthUser } from './auth.service';
 import {
-  LoginDto,
-  RegisterDto,
-  RefreshTokenDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
+  LoginInput,
+  RegisterInput,
+  RefreshTokenInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
 } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -24,7 +24,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() input: LoginDto) {
+  async login(@Body() input: LoginInput) {
     const result = await this.authService.login(input);
     return {
       success: true,
@@ -33,7 +33,7 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() input: RegisterDto) {
+  async register(@Body() input: RegisterInput) {
     const result = await this.authService.register(input);
     return {
       success: true,
@@ -43,7 +43,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() input: RefreshTokenDto) {
+  async refresh(@Body() input: RefreshTokenInput) {
     const tokens = await this.authService.refreshTokens(input);
     return {
       success: true,
@@ -64,7 +64,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() input: ForgotPasswordDto) {
+  async forgotPassword(@Body() input: ForgotPasswordInput) {
     // In production, this would send an email with a reset link
     // For now, we just return success
     return {
@@ -75,7 +75,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() input: ResetPasswordDto) {
+  async resetPassword(@Body() input: ResetPasswordInput) {
     // In production, this would validate a token and update the password
     return {
       success: true,

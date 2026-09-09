@@ -38,9 +38,9 @@ export class AuditService {
         action,
         entityType,
         entityId: entityId || null,
-        beforeData: beforeData || null,
-        afterData: afterData || null,
-        metadata: metadata || null,
+        beforeData: (beforeData as any) ?? undefined,
+        afterData: (afterData as any) ?? undefined,
+        metadata: (metadata as any) ?? undefined,
       },
     });
   }
@@ -53,9 +53,9 @@ export class AuditService {
         action: input.action,
         entityType: input.entityType,
         entityId: input.entityId || null,
-        beforeData: input.beforeData || null,
-        afterData: input.afterData || null,
-        metadata: input.metadata || null,
+        beforeData: (input.beforeData as any) ?? undefined,
+        afterData: (input.afterData as any) ?? undefined,
+        metadata: (input.metadata as any) ?? undefined,
       })),
     });
   }

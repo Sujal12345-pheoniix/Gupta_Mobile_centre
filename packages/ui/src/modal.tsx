@@ -26,9 +26,9 @@ export const Modal: React.FC<ModalProps> = ({
         'flex items-center justify-center',
         'bg-black/50 backdrop-blur-sm',
         className,
-      ].join(' ')},
-      'role': 'dialog',
-      'aria-modal': 'true',
+      ].join(' ')}
+      role="dialog"
+      aria-modal="true"
     >
       <div className="relative rounded-lg bg-card w-full max-w-lg mx-4 shadow-lg transform scale-100">
         {title && (
