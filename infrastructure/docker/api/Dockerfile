@@ -1,34 +1,34 @@
-# Build stage
-FROM node:20-alpine AS builder
-WORKDIR /usr/src/app
+FROM node:20-alpine AS base
+WORKDIR /app
+RUN npm install -g pnpm
 
-# Install dependencies
-COPY apps/api/package*.json ./
-COPY pnpm-lock.yaml .
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+FROM base AS dependencies
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/database/package.json ./packages/database/
+COPY packages/types/package.json ./packages/types/
+COPY packages/validation/package.json ./packages/validation/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/config/package.json ./packages/config/
+COPY packages/ui/package.json ./packages/ui/
+RUN pnpm install --frozen-lockfile=false
 
-# Copy source code
-COPY apps/api/ .
-RUN pnpm run build
+FROM dependencies AS builder
+COPY . .
+RUN npx prisma generate --schema=prisma/schema.prisma
+RUN pnpm --filter gupta-mobile-api build
 
-# Production stage
-FROM node:20-alpine AS runner
-WORKDIR /usr/src/app
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api ./apps/api
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/prisma ./prisma
 
-# Install production dependencies only
-COPY --from=builder /usr/src/app/package*.json ./
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:4000/api/v1/health || exit 1
 
-# Copy built application
-COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/prisma ./prisma
-
-# Expose port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/v1/health || exit 1
-
-# Start application
-CMD ["node", "dist/main"]
+CMD ["node", "apps/api/dist/main.js"]

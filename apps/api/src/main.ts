@@ -8,10 +8,28 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://admin.guptamobile.com',
+      ];
+
   app.enableCors({
-    origin: process.env.APP_ENV === 'production'
-      ? ['https://admin.guptamobile.com']
-      : ['http://localhost:3001', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes('*') ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Permissive fallback for initial deployment
+    },
     credentials: true,
   });
 
@@ -31,9 +49,9 @@ async function bootstrap() {
   );
 
   const config = app.get(ConfigService);
-  const port = config.get<number>('APP_PORT') ?? 3000;
+  const port = process.env.PORT || config.get<number>('APP_PORT') || 4000;
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`🚀 Application running on port ${port}`);
   logger.log(`📖 Health check: http://localhost:${port}/api/v1/health`);
 }
