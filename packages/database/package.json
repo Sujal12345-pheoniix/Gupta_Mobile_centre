@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "prebuild": "prisma generate --schema=../../prisma/schema.prisma",
     "build": "tsc -p tsconfig.json",
     "migrate:dev": "npx prisma migrate dev --schema=../../prisma/schema.prisma",
     "migrate:deploy": "npx prisma migrate deploy --schema=../../prisma/schema.prisma",
@@ -12,6 +13,7 @@
     "@prisma/client": "5.22.0"
   },
   "devDependencies": {
+    "prisma": "5.22.0",
     "typescript": "^5.1.3"
   }
 }

@@ -6,6 +6,7 @@
   "description": "Retail Management Platform for Gupta Mobile Centre",
   "scripts": {
     "build": "pnpm -r build",
+    "postinstall": "prisma generate --schema=prisma/schema.prisma",
     "build:api": "npx prisma generate --schema=prisma/schema.prisma && pnpm --filter gupta-api build",
     "start:api": "node apps/api/dist/main.js",
     "dev:api": "pnpm --filter gupta-api dev",
