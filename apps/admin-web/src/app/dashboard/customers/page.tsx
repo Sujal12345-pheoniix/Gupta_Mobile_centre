@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { initialCustomers, CustomerRecord } from '@/lib/mockData';
+import { useStore } from '@/lib/store';
+import { CustomerRecord } from '@/lib/mockData';
 
 const formatINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
@@ -12,7 +13,7 @@ export default function CustomersPage() {
   const isAdmin = roles.includes('Admin');
   const isManager = roles.includes('Manager') || isAdmin;
 
-  const [customers, setCustomers] = useState<CustomerRecord[]>(initialCustomers);
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useStore();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -34,11 +35,17 @@ export default function CustomersPage() {
   const handleSave = () => {
     if (!form.name || !form.phone) return alert('Name and phone required');
     if (editId) {
-      setCustomers(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
+      updateCustomer(editId, form);
     } else {
-      setCustomers(prev => [...prev, { ...form, id: `c-${Date.now()}`, totalPurchases: 0, outstandingBalance: 0, lastVisit: new Date().toISOString().split('T')[0] }]);
+      addCustomer(form);
     }
     setShowModal(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to remove this customer?')) {
+      deleteCustomer(id);
+    }
   };
 
   const totalOutstanding = customers.reduce((s, c) => s + c.outstandingBalance, 0);
@@ -106,7 +113,10 @@ export default function CustomersPage() {
               </div>
             </div>
             {isManager && (
-              <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="mt-3 w-full text-xs text-blue-600 hover:bg-blue-50 rounded-lg py-1 transition">Edit Details</button>
+              <div className="mt-3 flex gap-2">
+                <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="flex-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg py-1.5 border border-blue-200 transition font-medium">Edit Details</button>
+                {isAdmin && <button onClick={e => { e.stopPropagation(); handleDelete(c.id); }} className="flex-1 text-xs text-red-600 hover:bg-red-50 rounded-lg py-1.5 border border-red-200 transition font-medium">Delete</button>}
+              </div>
             )}
           </div>
         ))}

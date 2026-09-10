@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { initialProducts, ProductItem } from '@/lib/mockData';
+import { useStore } from '@/lib/store';
+import { ProductItem } from '@/lib/mockData';
 
 const formatINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const CATEGORIES = ['All', 'Smartphones', 'Chargers', 'Screen Guards', 'Accessories', 'Spare Parts', 'Cables'];
@@ -20,7 +21,7 @@ export default function ProductsPage() {
   const isAdmin = roles.includes('Admin');
   const isManager = roles.includes('Manager') || isAdmin;
 
-  const [products, setProducts] = useState<ProductItem[]>(initialProducts);
+  const { products, addProduct, updateProduct, deleteProduct, archiveProduct } = useStore();
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [brandFilter, setBrandFilter] = useState('All');
@@ -39,12 +40,19 @@ export default function ProductsPage() {
   const openEdit = (p: ProductItem) => { const { id, ...rest } = p; setEditId(id); setForm(rest); setShowModal(true); };
   const handleSave = () => {
     if (!form.name || !form.sku) return alert('Name and SKU are required');
-    if (editId) setProducts(prev => prev.map(p => p.id === editId ? { ...form, id: editId } : p));
-    else setProducts(prev => [...prev, { ...form, id: `prod-${Date.now()}` }]);
+    if (editId) {
+      updateProduct(editId, form);
+    } else {
+      addProduct(form);
+    }
     setShowModal(false);
   };
-  const handleArchive = (id: string) =>
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, status: p.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' } : p));
+  const handleArchive = (id: string) => archiveProduct(id);
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this product?')) {
+      deleteProduct(id);
+    }
+  };
 
   const profit = (p: ProductItem) => p.sellingPrice - p.purchasePrice;
   const margin = (p: ProductItem) => p.purchasePrice > 0 ? ((profit(p) / p.purchasePrice) * 100).toFixed(1) : '0';
@@ -114,6 +122,7 @@ export default function ProductsPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openEdit(p)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">Edit</button>
                         {isAdmin && <button onClick={() => handleArchive(p.id)} className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition">{p.status === 'ACTIVE' ? 'Archive' : 'Restore'}</button>}
+                        {isAdmin && <button onClick={() => handleDelete(p.id)} className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition">Delete</button>}
                       </div>
                     </td>
                   )}

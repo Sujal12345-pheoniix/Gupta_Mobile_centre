@@ -1,10 +1,12 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import { useStore } from '@/lib/store';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { resetToDefaultData } = useStore();
   const roles = user?.roles || [];
   const isAdmin = roles.includes('Admin');
 
@@ -88,9 +90,23 @@ export default function SettingsPage() {
               </div>
             </div>
             {isAdmin && (
-              <button onClick={handleSave} className={`px-6 py-2 rounded-lg text-sm font-medium transition ${saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-                {saved ? '✓ Saved!' : 'Save Changes'}
-              </button>
+              <div className="flex items-center gap-4 pt-4 border-t">
+                <button onClick={handleSave} className={`px-6 py-2 rounded-lg text-sm font-medium transition ${saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                  {saved ? '✓ Saved!' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Reset store data back to default mobile shop catalog, staff, and repair jobs?')) {
+                      resetToDefaultData();
+                      alert('Store data has been reset to defaults!');
+                    }
+                  }}
+                  className="px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition"
+                >
+                  ↺ Reset Store Data to Default
+                </button>
+              </div>
             )}
             {!isAdmin && (
               <p className="text-xs text-gray-400">Only Admin can modify organisation settings.</p>

@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { initialProducts, initialStockMovements, StockMovementItem, ProductItem } from '@/lib/mockData';
+import { useStore } from '@/lib/store';
+import { StockMovementItem } from '@/lib/mockData';
 
 const formatINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
@@ -20,8 +21,7 @@ export default function InventoryPage() {
   const isAdmin = roles.includes('Admin');
   const isManager = roles.includes('Manager') || isAdmin;
 
-  const [products, setProducts] = useState<ProductItem[]>(initialProducts);
-  const [movements, setMovements] = useState<StockMovementItem[]>(initialStockMovements);
+  const { products, stockMovements: movements, adjustStock } = useStore();
   const [tab, setTab] = useState<'stock' | 'movements'>('stock');
   const [showAdjModal, setShowAdjModal] = useState(false);
   const [adjForm, setAdjForm] = useState({ sku: '', productName: '', quantity: 0, type: 'ADJUSTMENT' as StockMovementItem['type'], reason: '' });
@@ -31,16 +31,8 @@ export default function InventoryPage() {
 
   const handleAdjSubmit = () => {
     if (!adjForm.sku || adjForm.quantity === 0) return alert('Fill all fields');
-    const product = products.find(p => p.sku === adjForm.sku);
-    if (!product) return alert('Product not found');
-    const qty = adjForm.type === 'SALE' || adjForm.type === 'DAMAGE' ? -Math.abs(adjForm.quantity) : Math.abs(adjForm.quantity);
-    if (product.stock + qty < 0) return alert('Insufficient stock');
-    setProducts(prev => prev.map(p => p.sku === adjForm.sku ? { ...p, stock: p.stock + qty } : p));
-    setMovements(prev => [{
-      id: `sm-${Date.now()}`, date: new Date().toLocaleString('en-IN'), sku: adjForm.sku,
-      productName: product.name, type: adjForm.type, quantity: qty, reason: adjForm.reason,
-      actor: user?.name || 'Admin'
-    }, ...prev]);
+    const success = adjustStock(adjForm.sku, adjForm.quantity, adjForm.type, adjForm.reason, user?.name || 'Admin');
+    if (!success) return alert('Insufficient stock or product not found');
     setShowAdjModal(false);
     setAdjForm({ sku: '', productName: '', quantity: 0, type: 'ADJUSTMENT', reason: '' });
   };

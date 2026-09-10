@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { initialSales, initialProducts, SaleRecord, ProductItem } from '@/lib/mockData';
+import { useStore } from '@/lib/store';
+import { SaleRecord, ProductItem } from '@/lib/mockData';
 
 const formatINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
@@ -14,8 +15,7 @@ export default function SalesPage() {
   const isAdmin = roles.includes('Admin');
   const isStaff = roles.includes('Staff');
 
-  const [sales, setSales] = useState<SaleRecord[]>(initialSales);
-  const [products, setProducts] = useState<ProductItem[]>(initialProducts);
+  const { sales, products, recordSale } = useStore();
   const [view, setView] = useState<'list' | 'pos'>('list');
   const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
   const [search, setSearch] = useState('');
@@ -64,21 +64,26 @@ export default function SalesPage() {
 
   const completeSale = () => {
     if (cart.length === 0) return alert('Add items to cart');
-    const invoiceNumber = `GMC-${1005 + sales.length}`;
-    const newSale: SaleRecord = {
-      id: `s-${Date.now()}`, invoiceNumber, date: new Date().toLocaleString('en-IN'),
-      customerName, customerPhone, itemsCount: cart.reduce((s, c) => s + c.qty, 0),
-      subtotal, discount, tax: taxAmount, total, paidAmount: total,
-      paymentMethod: payMethod, status: 'COMPLETED', staffName: user?.name || 'Staff',
-    };
-    setSales(prev => [newSale, ...prev]);
-    setProducts(prev => prev.map(p => {
-      const item = cart.find(c => c.product.id === p.id);
-      return item ? { ...p, stock: p.stock - item.qty } : p;
-    }));
-    setCart([]); setDiscount(0); setCustomerName('Walk-in Customer'); setCustomerPhone('');
+    const newSale = recordSale({
+      customerName,
+      customerPhone,
+      itemsCount: cart.reduce((s, c) => s + c.qty, 0),
+      subtotal,
+      discount,
+      tax: taxAmount,
+      total,
+      paidAmount: total,
+      paymentMethod: payMethod,
+      status: 'COMPLETED',
+      staffName: user?.name || 'Staff',
+    }, cart);
+
+    setSelectedSale(newSale);
+    setCart([]);
+    setDiscount(0);
+    setCustomerName('Walk-in Customer');
+    setCustomerPhone('');
     setView('list');
-    alert(`Sale ${invoiceNumber} completed! Total: ${formatINR(total)}`);
   };
 
   if (view === 'pos') {

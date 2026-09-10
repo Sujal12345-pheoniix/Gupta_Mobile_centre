@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { initialEmployees, EmployeeRecord } from '@/lib/mockData';
+import { useStore } from '@/lib/store';
+import { EmployeeRecord } from '@/lib/mockData';
 
 const formatINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
@@ -26,7 +27,7 @@ export default function EmployeesPage() {
   const isAdmin = roles.includes('Admin');
   const isManager = roles.includes('Manager') || isAdmin;
 
-  const [employees, setEmployees] = useState<EmployeeRecord[]>(initialEmployees);
+  const { employees, addEmployee, updateEmployee, removeEmployee, markAttendance } = useStore();
   const [tab, setTab] = useState<'roster' | 'payroll'>('roster');
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -53,12 +54,18 @@ export default function EmployeesPage() {
   };
   const handleSave = () => {
     if (!form.name || !form.phone) return alert('Name and phone required');
-    if (editId) setEmployees(prev => prev.map(e => e.id === editId ? { ...e, ...form } : e));
-    else setEmployees(prev => [...prev, { ...form, id: `emp-${Date.now()}`, totalSalesMonth: 0 }]);
+    if (editId) {
+      updateEmployee(editId, form);
+    } else {
+      addEmployee(form);
+    }
     setShowModal(false);
   };
-  const markAttendance = (id: string, att: EmployeeRecord['todayAttendance']) =>
-    setEmployees(prev => prev.map(e => e.id === id ? { ...e, todayAttendance: att } : e));
+  const handleRemove = (id: string) => {
+    if (confirm('Are you sure you want to remove this employee?')) {
+      removeEmployee(id);
+    }
+  };
 
   return (
     <div>
@@ -128,7 +135,12 @@ export default function EmployeesPage() {
                     <option value="LATE">Late</option>
                     <option value="HALF_DAY">Half Day</option>
                   </select>
-                  {isAdmin && <button onClick={() => openEdit(emp)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">Edit</button>}
+                  {isAdmin && (
+                    <>
+                      <button onClick={() => openEdit(emp)} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">Edit</button>
+                      <button onClick={() => handleRemove(emp.id)} className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition">Remove</button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
