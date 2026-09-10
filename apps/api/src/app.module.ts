@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { UsersModule } from './modules/users/users.module';
+import { StoreModule } from './modules/store/store.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service';
     RbacModule,
     AuditModule,
     UsersModule,
+    StoreModule,
     HealthModule,
   ],
   controllers: [AppController],

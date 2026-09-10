@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ProductItem, StockMovementItem, SaleRecord, CustomerRecord, EmployeeRecord, PurchaseRecord } from './mockData';
+import { ProductItem, StockMovementItem, SaleRecord, CustomerRecord, EmployeeRecord } from './mockData';
+import { api } from './api';
 
 export interface RepairJob {
   id: string;
@@ -23,45 +24,47 @@ export interface RepairJob {
 interface StoreContextType {
   // Products
   products: ProductItem[];
-  addProduct: (product: Omit<ProductItem, 'id'>) => void;
-  updateProduct: (id: string, product: Partial<ProductItem>) => void;
-  deleteProduct: (id: string) => void;
-  archiveProduct: (id: string) => void;
+  addProduct: (product: Omit<ProductItem, 'id'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<ProductItem>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  archiveProduct: (id: string) => Promise<void>;
 
   // Inventory
   stockMovements: StockMovementItem[];
-  adjustStock: (sku: string, quantity: number, type: StockMovementItem['type'], reason: string, actor: string) => boolean;
+  adjustStock: (sku: string, quantity: number, type: StockMovementItem['type'], reason: string, actor: string) => Promise<boolean>;
 
   // Customers
   customers: CustomerRecord[];
-  addCustomer: (customer: Omit<CustomerRecord, 'id' | 'totalPurchases' | 'outstandingBalance' | 'lastVisit'>) => CustomerRecord;
-  updateCustomer: (id: string, customer: Partial<CustomerRecord>) => void;
-  deleteCustomer: (id: string) => void;
+  addCustomer: (customer: Omit<CustomerRecord, 'id' | 'totalPurchases' | 'outstandingBalance' | 'lastVisit'>) => Promise<CustomerRecord>;
+  updateCustomer: (id: string, customer: Partial<CustomerRecord>) => Promise<void>;
+  deleteCustomer: (id: string) => Promise<void>;
 
   // Employees
   employees: EmployeeRecord[];
-  addEmployee: (employee: Omit<EmployeeRecord, 'id' | 'totalSalesMonth'>) => void;
-  updateEmployee: (id: string, employee: Partial<EmployeeRecord>) => void;
-  removeEmployee: (id: string) => void;
-  changeEmployeeRole: (id: string, role: EmployeeRecord['role']) => void;
-  markAttendance: (id: string, status: EmployeeRecord['todayAttendance']) => void;
+  addEmployee: (employee: Omit<EmployeeRecord, 'id' | 'totalSalesMonth'>) => Promise<void>;
+  updateEmployee: (id: string, employee: Partial<EmployeeRecord>) => Promise<void>;
+  removeEmployee: (id: string) => Promise<void>;
+  changeEmployeeRole: (id: string, role: EmployeeRecord['role']) => Promise<void>;
+  markAttendance: (id: string, status: EmployeeRecord['todayAttendance']) => Promise<void>;
 
   // Sales
   sales: SaleRecord[];
-  recordSale: (sale: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]) => SaleRecord;
+  recordSale: (sale: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]) => Promise<SaleRecord>;
 
   // Repairs
   repairs: RepairJob[];
   addRepairJob: (job: Omit<RepairJob, 'id' | 'ticketNumber' | 'createdAt'>) => RepairJob;
   updateRepairStatus: (id: string, status: RepairJob['status'], notes?: string) => void;
 
-  // Reset
+  // Sync & Status
+  isDbConnected: boolean;
+  refreshFromDb: () => Promise<void>;
   resetToDefaultData: () => void;
 }
 
 const STORAGE_KEY = 'gupta_mobile_store_v2';
 
-// Realistic pre-seeded store catalog for Gupta Mobile Centre
+// Clean initial data for Gupta Mobile Centre
 const DEFAULT_PRODUCTS: ProductItem[] = [
   { id: 'p-1', name: 'Apple iPhone 15 (128GB - Black)', category: 'Smartphones', brand: 'Apple', sku: 'IPH15-128-BLK', barcode: '194253408215', purchasePrice: 62000, sellingPrice: 69900, mrp: 79900, stock: 8, minStock: 3, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
   { id: 'p-2', name: 'Samsung Galaxy S24 (256GB - Onyx Black)', category: 'Smartphones', brand: 'Samsung', sku: 'SAM-S24-256', barcode: '880609501234', purchasePrice: 66000, sellingPrice: 74999, mrp: 84999, stock: 5, minStock: 2, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
@@ -116,8 +119,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sales, setSales] = useState<SaleRecord[]>(DEFAULT_SALES);
   const [repairs, setRepairs] = useState<RepairJob[]>(DEFAULT_REPAIRS);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isDbConnected, setIsDbConnected] = useState(false);
 
-  // Load from localStorage on mount
+  // Sync from live Neon PostgreSQL Database
+  const refreshFromDb = async () => {
+    try {
+      const res = await api.getStoreData();
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        if (res.data.products && res.data.products.length > 0) {
+          setProducts(res.data.products);
+        }
+        if (res.data.customers && res.data.customers.length > 0) {
+          setCustomers(res.data.customers);
+        }
+        if (res.data.employees && res.data.employees.length > 0) {
+          setEmployees(res.data.employees);
+        }
+        if (res.data.stockMovements && res.data.stockMovements.length > 0) {
+          setStockMovements(res.data.stockMovements);
+        }
+        if (res.data.sales && res.data.sales.length > 0) {
+          setSales(res.data.sales);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not sync with live PostgreSQL database, using cached local store:', err);
+    }
+  };
+
+  // Initial load: LocalStorage first, then background live Database sync
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -134,10 +165,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load store data from localStorage', e);
     } finally {
       setIsLoaded(true);
+      // Fetch live data from PostgreSQL
+      refreshFromDb();
     }
   }, []);
 
-  // Save to localStorage whenever state changes
+  // Save to localStorage as resilient offline cache
   useEffect(() => {
     if (!isLoaded) return;
     try {
@@ -150,11 +183,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [products, stockMovements, customers, employees, sales, repairs, isLoaded]);
 
-  // Product Actions
-  const addProduct = (item: Omit<ProductItem, 'id'>) => {
-    const newProduct: ProductItem = { ...item, id: `p-${Date.now()}` };
+  // Product Actions (Saving to Neon PostgreSQL)
+  const addProduct = async (item: Omit<ProductItem, 'id'>) => {
+    const tempId = `p-${Date.now()}`;
+    const newProduct: ProductItem = { ...item, id: tempId };
     setProducts(prev => [newProduct, ...prev]);
-    // Log initial stock movement if > 0
+
     if (newProduct.stock > 0) {
       setStockMovements(prev => [
         {
@@ -170,22 +204,53 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...prev
       ]);
     }
+
+    try {
+      const res = await api.createProduct(item);
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        // Replace temp ID with real DB ID
+        setProducts(prev => prev.map(p => p.id === tempId ? { ...p, id: res.data.id } : p));
+      }
+    } catch (err) {
+      console.warn('Database save product failed, cached locally:', err);
+    }
   };
 
-  const updateProduct = (id: string, updated: Partial<ProductItem>) => {
+  const updateProduct = async (id: string, updated: Partial<ProductItem>) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+    try {
+      await api.updateProduct(id, updated);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database update product failed, cached locally:', err);
+    }
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
+    try {
+      await api.deleteProduct(id);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database delete product failed, cached locally:', err);
+    }
   };
 
-  const archiveProduct = (id: string) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, status: p.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' } : p));
+  const archiveProduct = async (id: string) => {
+    const product = products.find(p => p.id === id);
+    const newStatus = product?.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE';
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+    try {
+      await api.updateProduct(id, { status: newStatus });
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database archive product failed, cached locally:', err);
+    }
   };
 
-  // Inventory Adjustment
-  const adjustStock = (sku: string, quantity: number, type: StockMovementItem['type'], reason: string, actor: string): boolean => {
+  // Inventory Adjustment (Saving to Neon PostgreSQL)
+  const adjustStock = async (sku: string, quantity: number, type: StockMovementItem['type'], reason: string, actor: string): Promise<boolean> => {
     const product = products.find(p => p.sku === sku);
     if (!product) return false;
 
@@ -206,58 +271,127 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       ...prev
     ]);
+
+    try {
+      await api.adjustInventory({ sku, quantity: delta, type, reason, actor });
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database adjust stock failed, cached locally:', err);
+    }
+
     return true;
   };
 
-  // Customers
-  const addCustomer = (item: Omit<CustomerRecord, 'id' | 'totalPurchases' | 'outstandingBalance' | 'lastVisit'>): CustomerRecord => {
+  // Customers (Saving to Neon PostgreSQL)
+  const addCustomer = async (item: Omit<CustomerRecord, 'id' | 'totalPurchases' | 'outstandingBalance' | 'lastVisit'>): Promise<CustomerRecord> => {
+    const tempId = `c-${Date.now()}`;
     const newCustomer: CustomerRecord = {
       ...item,
-      id: `c-${Date.now()}`,
+      id: tempId,
       totalPurchases: 0,
       outstandingBalance: 0,
       lastVisit: new Date().toISOString().split('T')[0]
     };
     setCustomers(prev => [newCustomer, ...prev]);
+
+    try {
+      const res = await api.createCustomer(item);
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        const savedCustomer = { ...newCustomer, id: res.data.id };
+        setCustomers(prev => prev.map(c => c.id === tempId ? savedCustomer : c));
+        return savedCustomer;
+      }
+    } catch (err) {
+      console.warn('Database save customer failed, cached locally:', err);
+    }
+
     return newCustomer;
   };
 
-  const updateCustomer = (id: string, updated: Partial<CustomerRecord>) => {
+  const updateCustomer = async (id: string, updated: Partial<CustomerRecord>) => {
     setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c));
+    try {
+      await api.updateCustomer(id, updated);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database update customer failed, cached locally:', err);
+    }
   };
 
-  const deleteCustomer = (id: string) => {
+  const deleteCustomer = async (id: string) => {
     setCustomers(prev => prev.filter(c => c.id !== id));
+    try {
+      await api.deleteCustomer(id);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database delete customer failed, cached locally:', err);
+    }
   };
 
-  // Employees
-  const addEmployee = (item: Omit<EmployeeRecord, 'id' | 'totalSalesMonth'>) => {
+  // Employees (Saving to Neon PostgreSQL)
+  const addEmployee = async (item: Omit<EmployeeRecord, 'id' | 'totalSalesMonth'>) => {
+    const tempId = `emp-${Date.now()}`;
     const newEmp: EmployeeRecord = {
       ...item,
-      id: `emp-${Date.now()}`,
+      id: tempId,
       totalSalesMonth: 0
     };
     setEmployees(prev => [...prev, newEmp]);
+
+    try {
+      const res = await api.createEmployee(item);
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        setEmployees(prev => prev.map(e => e.id === tempId ? { ...e, id: res.data.id } : e));
+      }
+    } catch (err) {
+      console.warn('Database save employee failed, cached locally:', err);
+    }
   };
 
-  const updateEmployee = (id: string, updated: Partial<EmployeeRecord>) => {
+  const updateEmployee = async (id: string, updated: Partial<EmployeeRecord>) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updated } : e));
+    try {
+      await api.updateEmployee(id, updated);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database update employee failed, cached locally:', err);
+    }
   };
 
-  const removeEmployee = (id: string) => {
+  const removeEmployee = async (id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id));
+    try {
+      await api.deleteEmployee(id);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database delete employee failed, cached locally:', err);
+    }
   };
 
-  const changeEmployeeRole = (id: string, role: EmployeeRecord['role']) => {
+  const changeEmployeeRole = async (id: string, role: EmployeeRecord['role']) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, role } : e));
+    try {
+      await api.updateEmployee(id, { role });
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database update role failed, cached locally:', err);
+    }
   };
 
-  const markAttendance = (id: string, status: EmployeeRecord['todayAttendance']) => {
+  const markAttendance = async (id: string, status: EmployeeRecord['todayAttendance']) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, todayAttendance: status } : e));
+    try {
+      await api.markAttendance({ employeeId: id, status });
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database mark attendance failed, cached locally:', err);
+    }
   };
 
-  // Sales (POS)
-  const recordSale = (saleData: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]): SaleRecord => {
+  // Sales (POS) (Saving to Neon PostgreSQL)
+  const recordSale = async (saleData: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]): Promise<SaleRecord> => {
     const invoiceNumber = `GMC-${1000 + sales.length + 1}`;
     const newSale: SaleRecord = {
       ...saleData,
@@ -266,10 +400,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       date: new Date().toLocaleString('en-IN')
     };
 
-    // 1. Save sale
     setSales(prev => [newSale, ...prev]);
 
-    // 2. Reduce stock & record movements
+    // Decrement stock in UI
     const movementsToAdd: StockMovementItem[] = [];
     setProducts(prevProducts => {
       return prevProducts.map(prod => {
@@ -293,29 +426,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setStockMovements(prev => [...movementsToAdd, ...prev]);
 
-    // 3. Update customer purchase total
-    if (saleData.customerPhone) {
-      setCustomers(prev => {
-        const found = prev.find(c => c.phone === saleData.customerPhone);
-        if (found) {
-          return prev.map(c => c.id === found.id ? {
-            ...c,
-            totalPurchases: c.totalPurchases + saleData.total,
-            lastVisit: new Date().toISOString().split('T')[0]
-          } : c);
-        }
-        return prev;
-      });
-    }
-
-    // 4. Credit sales to employee
-    if (saleData.staffName) {
-      setEmployees(prev => prev.map(e => {
-        if (e.name.toLowerCase().includes(saleData.staffName.toLowerCase()) || saleData.staffName.toLowerCase().includes(e.name.toLowerCase())) {
-          return { ...e, totalSalesMonth: e.totalSalesMonth + saleData.total };
-        }
-        return e;
-      }));
+    // Send sale transaction to PostgreSQL
+    try {
+      const apiPayload = {
+        customerName: saleData.customerName,
+        customerPhone: saleData.customerPhone,
+        subtotal: saleData.subtotal,
+        discount: saleData.discount,
+        tax: saleData.tax,
+        total: saleData.total,
+        paidAmount: saleData.paidAmount,
+        paymentMethod: saleData.paymentMethod,
+        staffName: saleData.staffName,
+        items: cartItems.map(c => ({
+          sku: c.product.sku,
+          qty: c.qty,
+          unitPrice: c.product.sellingPrice
+        }))
+      };
+      await api.recordSale(apiPayload);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database record sale failed, cached locally:', err);
     }
 
     return newSale;
@@ -383,6 +515,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         repairs,
         addRepairJob,
         updateRepairStatus,
+        isDbConnected,
+        refreshFromDb,
         resetToDefaultData
       }}
     >

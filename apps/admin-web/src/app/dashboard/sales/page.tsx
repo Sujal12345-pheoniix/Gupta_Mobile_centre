@@ -62,9 +62,9 @@ export default function SalesPage() {
   const taxAmount = cart.reduce((sum, c) => sum + (c.product.sellingPrice * c.qty * c.product.taxRate / (100 + c.product.taxRate)), 0);
   const total = subtotal - discount;
 
-  const completeSale = () => {
+  const completeSale = async () => {
     if (cart.length === 0) return alert('Add items to cart');
-    const newSale = recordSale({
+    const newSale = await recordSale({
       customerName,
       customerPhone,
       itemsCount: cart.reduce((s, c) => s + c.qty, 0),

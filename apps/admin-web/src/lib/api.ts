@@ -174,6 +174,59 @@ class ApiClient {
 
     return response;
   }
+
+  // Live Database APIs connected to Neon PostgreSQL
+  async getStoreData(): Promise<ApiResponse<any>> {
+    return this.request<any>('GET', '/store/data', undefined, { authenticated: false });
+  }
+
+  async createProduct(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/products', dto, { authenticated: false });
+  }
+
+  async updateProduct(id: string, dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/products/${id}`, dto, { authenticated: false });
+  }
+
+  async deleteProduct(id: string): Promise<ApiResponse<any>> {
+    return this.request<any>('DELETE', `/store/products/${id}`, undefined, { authenticated: false });
+  }
+
+  async adjustInventory(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/inventory/adjust', dto, { authenticated: false });
+  }
+
+  async createCustomer(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/customers', dto, { authenticated: false });
+  }
+
+  async updateCustomer(id: string, dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/customers/${id}`, dto, { authenticated: false });
+  }
+
+  async deleteCustomer(id: string): Promise<ApiResponse<any>> {
+    return this.request<any>('DELETE', `/store/customers/${id}`, undefined, { authenticated: false });
+  }
+
+  async createEmployee(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/employees', dto, { authenticated: false });
+  }
+
+  async updateEmployee(id: string, dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/employees/${id}`, dto, { authenticated: false });
+  }
+
+  async deleteEmployee(id: string): Promise<ApiResponse<any>> {
+    return this.request<any>('DELETE', `/store/employees/${id}`, undefined, { authenticated: false });
+  }
+
+  async markAttendance(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/employees/attendance', dto, { authenticated: false });
+  }
+
+  async recordSale(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/sales', dto, { authenticated: false });
+  }
 }
 
 export const api = new ApiClient();
