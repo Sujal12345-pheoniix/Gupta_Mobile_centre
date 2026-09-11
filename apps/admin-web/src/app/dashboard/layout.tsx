@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import InstallPwaPrompt from '@/components/InstallPwaPrompt';
 
 interface NavItem {
   href: string;
@@ -150,6 +151,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Mobile App Download Prompt */}
+      <InstallPwaPrompt />
     </div>
   );
 }
