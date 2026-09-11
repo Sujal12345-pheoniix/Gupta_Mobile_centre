@@ -29,9 +29,9 @@ export default function InventoryPage() {
   const lowStock = products.filter(p => p.stock <= p.minStock && p.status === 'ACTIVE');
   const totalValue = products.reduce((sum, p) => sum + p.stock * p.purchasePrice, 0);
 
-  const handleAdjSubmit = () => {
+  const handleAdjSubmit = async () => {
     if (!adjForm.sku || adjForm.quantity === 0) return alert('Fill all fields');
-    const success = adjustStock(adjForm.sku, adjForm.quantity, adjForm.type, adjForm.reason, user?.name || 'Admin');
+    const success = await adjustStock(adjForm.sku, adjForm.quantity, adjForm.type, adjForm.reason, user?.name || 'Admin');
     if (!success) return alert('Insufficient stock or product not found');
     setShowAdjModal(false);
     setAdjForm({ sku: '', productName: '', quantity: 0, type: 'ADJUSTMENT', reason: '' });

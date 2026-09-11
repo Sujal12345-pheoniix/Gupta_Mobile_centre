@@ -227,6 +227,18 @@ class ApiClient {
   async recordSale(dto: any): Promise<ApiResponse<any>> {
     return this.request<any>('POST', '/store/sales', dto, { authenticated: false });
   }
+
+  async createSupplier(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/suppliers', dto, { authenticated: false });
+  }
+
+  async createPurchase(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/purchases', dto, { authenticated: false });
+  }
+
+  async markPurchaseReceived(id: string): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/purchases/${id}/receive`, undefined, { authenticated: false });
+  }
 }
 
 export const api = new ApiClient();

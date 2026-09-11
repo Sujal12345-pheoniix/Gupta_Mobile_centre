@@ -28,7 +28,7 @@ async function bootstrap() {
       ) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive fallback for initial deployment
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   });

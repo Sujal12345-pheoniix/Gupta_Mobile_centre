@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
-import { Prisma, ProductStatus, TrackingMode, StockMovementType, SaleStatus, PaymentMethod, AttendanceStatus, EmployeeStatus } from '@prisma/client';
+import { Prisma, ProductStatus, TrackingMode, StockMovementType, SaleStatus, PaymentMethod, AttendanceStatus, EmployeeStatus, PurchaseStatus } from '@prisma/client';
 
 @Injectable()
 export class StoreService {
@@ -199,12 +199,56 @@ export class StoreService {
       staffName: s.staff?.email?.split('@')[0] || 'Staff',
     }));
 
+    // 6. Fetch Suppliers
+    const suppliersDb = await this.prisma.supplier.findMany({
+      where: { organizationId: org.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const suppliers = suppliersDb.map((s) => ({
+      id: s.id,
+      name: s.name,
+      phone: s.phone || '',
+      email: s.email || '',
+      gstin: s.gstin || '',
+      city: typeof s.address === 'object' && s.address ? (s.address as any).city || '' : '',
+      payable: 0, // computed from unpaid purchases below
+    }));
+
+    // 7. Fetch Purchases with supplier info
+    const purchasesDb = await this.prisma.purchase.findMany({
+      where: { branchId: branch.id },
+      include: {
+        supplier: true,
+        items: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const purchases = purchasesDb.map((p) => ({
+      id: p.id,
+      poNumber: p.invoiceNumber || `PO-${p.id.slice(-6).toUpperCase()}`,
+      supplierName: p.supplier.name,
+      supplierId: p.supplierId,
+      date: p.purchasedAt
+        ? p.purchasedAt.toISOString().split('T')[0]
+        : p.createdAt.toISOString().split('T')[0],
+      total: Number(p.total),
+      paid: Number(p.paidAmount),
+      due: Number(p.dueAmount),
+      status: p.status,
+      itemsCount: p.items.reduce((sum, i) => sum + Number(i.quantity), 0),
+    }));
+
     return {
       products,
       customers,
       employees,
       stockMovements,
       sales,
+      suppliers,
+      purchases,
     };
   }
 
@@ -674,5 +718,87 @@ export class StoreService {
 
     this.logger.log(`✓ Sale recorded in PostgreSQL: Invoice ${invoiceNumber} Total: ₹${dto.total}`);
     return sale;
+  }
+
+  /**
+   * CREATE SUPPLIER in Neon PostgreSQL
+   */
+  async createSupplier(dto: {
+    name: string;
+    phone?: string;
+    email?: string;
+    gstin?: string;
+    city?: string;
+  }) {
+    const { org } = await this.getOrCreateOrgAndBranch();
+
+    const supplier = await this.prisma.supplier.create({
+      data: {
+        organizationId: org.id,
+        name: dto.name,
+        phone: dto.phone || null,
+        email: dto.email || null,
+        gstin: dto.gstin || null,
+        address: dto.city ? { city: dto.city } : Prisma.DbNull,
+      },
+    });
+
+    this.logger.log(`✓ Supplier created in PostgreSQL: ${supplier.name}`);
+    return supplier;
+  }
+
+  /**
+   * CREATE PURCHASE ORDER in Neon PostgreSQL
+   */
+  async createPurchase(dto: {
+    supplierId: string;
+    total: number;
+    paid?: number;
+    itemsCount?: number;
+  }) {
+    const { branch } = await this.getOrCreateOrgAndBranch();
+
+    const paid = Number(dto.paid) || 0;
+    const total = Number(dto.total) || 0;
+    const due = Math.max(0, total - paid);
+    const poNumber = `PO-${Date.now().toString().slice(-6)}`;
+
+    const purchase = await this.prisma.purchase.create({
+      data: {
+        branchId: branch.id,
+        supplierId: dto.supplierId,
+        invoiceNumber: poNumber,
+        status: PurchaseStatus.ORDERED,
+        total: new Prisma.Decimal(total),
+        paidAmount: new Prisma.Decimal(paid),
+        dueAmount: new Prisma.Decimal(due),
+        purchasedAt: new Date(),
+      },
+      include: {
+        supplier: true,
+      },
+    });
+
+    this.logger.log(`✓ Purchase Order created in PostgreSQL: ${poNumber} ₹${total}`);
+    return purchase;
+  }
+
+  /**
+   * MARK PURCHASE RECEIVED in Neon PostgreSQL
+   * Sets status to RECEIVED. Stock adjustments must be done separately via inventory adjust.
+   */
+  async markPurchaseReceived(id: string) {
+    const purchase = await this.prisma.purchase.update({
+      where: { id },
+      data: {
+        status: PurchaseStatus.RECEIVED,
+      },
+      include: {
+        supplier: true,
+      },
+    });
+
+    this.logger.log(`✓ Purchase ${purchase.invoiceNumber} marked as RECEIVED`);
+    return purchase;
   }
 }

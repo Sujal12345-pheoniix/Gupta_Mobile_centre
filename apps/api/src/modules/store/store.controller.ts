@@ -123,4 +123,31 @@ export class StoreController {
     const data = await this.storeService.recordSale(dto);
     return { success: true, data };
   }
+
+  /**
+   * POST /api/v1/store/suppliers
+   */
+  @Post('suppliers')
+  async createSupplier(@Body() dto: any) {
+    const data = await this.storeService.createSupplier(dto);
+    return { success: true, data };
+  }
+
+  /**
+   * POST /api/v1/store/purchases
+   */
+  @Post('purchases')
+  async createPurchase(@Body() dto: any) {
+    const data = await this.storeService.createPurchase(dto);
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /api/v1/store/purchases/:id/receive
+   */
+  @Patch('purchases/:id/receive')
+  async markPurchaseReceived(@Param('id') id: string) {
+    const data = await this.storeService.markPurchaseReceived(id);
+    return { success: true, data };
+  }
 }

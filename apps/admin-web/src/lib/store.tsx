@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ProductItem, StockMovementItem, SaleRecord, CustomerRecord, EmployeeRecord } from './mockData';
+import { ProductItem, StockMovementItem, SaleRecord, CustomerRecord, EmployeeRecord, PurchaseRecord, SupplierRecord } from './mockData';
 import { api } from './api';
 
 export interface RepairJob {
@@ -50,6 +50,13 @@ interface StoreContextType {
   // Sales
   sales: SaleRecord[];
   recordSale: (sale: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]) => Promise<SaleRecord>;
+
+  // Purchases & Suppliers
+  purchases: PurchaseRecord[];
+  suppliers: SupplierRecord[];
+  addSupplier: (supplier: Omit<SupplierRecord, 'id' | 'payable'>) => Promise<SupplierRecord>;
+  addPurchase: (purchase: { supplierName: string; supplierId?: string; total: number; paid: number; itemsCount: number }) => Promise<PurchaseRecord>;
+  markPurchaseReceived: (id: string) => Promise<void>;
 
   // Repairs
   repairs: RepairJob[];
@@ -118,6 +125,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [employees, setEmployees] = useState<EmployeeRecord[]>(DEFAULT_EMPLOYEES);
   const [sales, setSales] = useState<SaleRecord[]>(DEFAULT_SALES);
   const [repairs, setRepairs] = useState<RepairJob[]>(DEFAULT_REPAIRS);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
@@ -141,6 +150,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         if (res.data.sales && res.data.sales.length > 0) {
           setSales(res.data.sales);
+        }
+        // Purchases and Suppliers always override local state (DB is source of truth)
+        if (res.data.suppliers) {
+          setSuppliers(res.data.suppliers);
+        }
+        if (res.data.purchases) {
+          setPurchases(res.data.purchases);
         }
       }
     } catch (err) {
@@ -487,7 +503,92 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setEmployees(DEFAULT_EMPLOYEES);
     setSales(DEFAULT_SALES);
     setRepairs(DEFAULT_REPAIRS);
+    setPurchases([]);
+    setSuppliers([]);
     localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // Purchases & Suppliers (saving to Neon PostgreSQL)
+  const addSupplier = async (item: Omit<SupplierRecord, 'id' | 'payable'>): Promise<SupplierRecord> => {
+    const tempId = `sup-${Date.now()}`;
+    const newSupplier: SupplierRecord = { ...item, id: tempId, payable: 0 };
+    setSuppliers(prev => [...prev, newSupplier]);
+
+    try {
+      const res = await api.createSupplier(item);
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        const saved: SupplierRecord = {
+          id: res.data.id,
+          name: res.data.name,
+          phone: res.data.phone || '',
+          gstin: res.data.gstin || '',
+          city: item.city || '',
+          payable: 0,
+        };
+        setSuppliers(prev => prev.map(s => s.id === tempId ? saved : s));
+        return saved;
+      }
+    } catch (err) {
+      console.warn('Database save supplier failed, cached locally:', err);
+    }
+    return newSupplier;
+  };
+
+  const addPurchase = async (item: { supplierName: string; supplierId?: string; total: number; paid: number; itemsCount: number }): Promise<PurchaseRecord> => {
+    const tempId = `po-${Date.now()}`;
+    const newPO: PurchaseRecord = {
+      id: tempId,
+      poNumber: `PO-${Date.now().toString().slice(-6)}`,
+      supplierName: item.supplierName,
+      date: new Date().toISOString().split('T')[0],
+      total: item.total,
+      paid: item.paid,
+      due: Math.max(0, item.total - item.paid),
+      status: 'ORDERED',
+      itemsCount: item.itemsCount,
+    };
+    setPurchases(prev => [newPO, ...prev]);
+
+    if (item.supplierId) {
+      try {
+        const res = await api.createPurchase({
+          supplierId: item.supplierId,
+          total: item.total,
+          paid: item.paid,
+          itemsCount: item.itemsCount,
+        });
+        if (res.success && res.data) {
+          setIsDbConnected(true);
+          const saved: PurchaseRecord = {
+            id: res.data.id,
+            poNumber: res.data.invoiceNumber || newPO.poNumber,
+            supplierName: item.supplierName,
+            date: newPO.date,
+            total: item.total,
+            paid: item.paid,
+            due: Math.max(0, item.total - item.paid),
+            status: 'ORDERED',
+            itemsCount: item.itemsCount,
+          };
+          setPurchases(prev => prev.map(p => p.id === tempId ? saved : p));
+          return saved;
+        }
+      } catch (err) {
+        console.warn('Database save purchase failed, cached locally:', err);
+      }
+    }
+    return newPO;
+  };
+
+  const markPurchaseReceived = async (id: string): Promise<void> => {
+    setPurchases(prev => prev.map(p => p.id === id ? { ...p, status: 'RECEIVED' } : p));
+    try {
+      await api.markPurchaseReceived(id);
+      setIsDbConnected(true);
+    } catch (err) {
+      console.warn('Database mark purchase received failed, cached locally:', err);
+    }
   };
 
   return (
@@ -512,6 +613,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         markAttendance,
         sales,
         recordSale,
+        purchases,
+        suppliers,
+        addSupplier,
+        addPurchase,
+        markPurchaseReceived,
         repairs,
         addRepairJob,
         updateRepairStatus,
