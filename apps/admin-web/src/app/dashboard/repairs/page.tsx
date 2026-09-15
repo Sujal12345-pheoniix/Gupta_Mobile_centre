@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 const formatINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 const STATUS_CONFIG: Record<RepairJob['status'] | 'DELIVERED', { label: string; color: string; badge: string; border: string }> = {
-  DIAGNOSING:    { label: 'Diagnosing',       color: 'bg-yellow-50',  badge: 'bg-yellow-100 text-yellow-800',  border: 'border-t-yellow-400' },
+  DIAGNOSING:    { label: 'Diagnosing',        color: 'bg-yellow-50',  badge: 'bg-yellow-100 text-yellow-800',  border: 'border-t-yellow-400' },
   WAITING_PARTS: { label: 'Waiting for Parts', color: 'bg-orange-50',  badge: 'bg-orange-100 text-orange-800',  border: 'border-t-orange-400' },
   IN_REPAIR:     { label: 'In Repair',         color: 'bg-blue-50',    badge: 'bg-blue-100 text-blue-800',      border: 'border-t-blue-400' },
   READY:         { label: 'Ready for Pickup',  color: 'bg-emerald-50', badge: 'bg-emerald-100 text-emerald-800', border: 'border-t-emerald-500' },
@@ -16,7 +16,7 @@ const STATUS_CONFIG: Record<RepairJob['status'] | 'DELIVERED', { label: string; 
 
 const PIPELINE_STAGES: RepairJob['status'][] = ['DIAGNOSING', 'WAITING_PARTS', 'IN_REPAIR', 'READY'];
 
-type Tab = 'pipeline' | 'all' | 'parts' | 'delivered';
+type Tab = 'pipeline' | 'all' | 'financials' | 'parts' | 'delivered';
 
 export default function RepairsPage() {
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export default function RepairsPage() {
   const [filterTech, setFilterTech] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
 
-  // Technician list from employees
+  // Active technicians from employee list
   const technicians = employees.filter(e => e.status === 'ACTIVE' && (e.role === 'Technician' || e.role === 'Staff'));
 
   const [form, setForm] = useState({
@@ -42,22 +42,52 @@ export default function RepairsPage() {
     partsUsed: '',
   });
 
-  // Spare parts from inventory
+  // Spare parts from store inventory
   const spareParts = products.filter(p =>
     p.status === 'ACTIVE' &&
     (p.category === 'Spare Parts' || p.category === 'Cables' || p.category === 'Screen Guards')
   );
 
   const partsNeeded = repairs.filter(r => r.status === 'WAITING_PARTS');
-
-  // Stats
   const activeRepairs = repairs.filter(r => r.status !== 'DELIVERED');
-  const totalRevenue = repairs
-    .filter(r => r.status === 'READY' || r.status === 'DELIVERED')
-    .reduce((s, r) => s + r.estimatedCost, 0);
+  const completedRepairs = repairs.filter(r => r.status === 'READY' || r.status === 'DELIVERED');
+
+  // --- FINANCIAL CALCULATIONS ---
+  // Calculates parts cost: looks up matched inventory product or standard 30% parts ratio
+  const calculatePartsCost = (job: RepairJob) => {
+    if (!job.partsUsed || job.partsUsed.trim() === '') {
+      return Math.round(job.estimatedCost * 0.25);
+    }
+    const matched = products.find(p =>
+      job.partsUsed?.toLowerCase().includes(p.name.toLowerCase()) ||
+      p.name.toLowerCase().includes(job.partsUsed?.toLowerCase() || '')
+    );
+    if (matched) return matched.purchasePrice;
+    return Math.round(job.estimatedCost * 0.35);
+  };
+
+  // Calculates technician commission (default 5% if not configured)
+  const calculateCommission = (job: RepairJob) => {
+    const tech = employees.find(e => e.name.toLowerCase() === job.technicianName.toLowerCase());
+    const rate = tech ? tech.commissionRate : 5.0;
+    return Math.round((rate / 100) * job.estimatedCost);
+  };
+
+  // Aggregated totals
+  const totalRepairRevenue = completedRepairs.reduce((s, r) => s + r.estimatedCost, 0);
+  const totalPartsCost = completedRepairs.reduce((s, r) => s + calculatePartsCost(r), 0);
+  const totalCommissions = completedRepairs.reduce((s, r) => s + calculateCommission(r), 0);
+  const totalAdvanceCollected = repairs.reduce((s, r) => s + (r.advancePaid || 0), 0);
+
+  // Margins
+  const grossProfit = totalRepairRevenue - totalPartsCost;
+  const grossMarginPct = totalRepairRevenue > 0 ? ((grossProfit / totalRepairRevenue) * 100).toFixed(1) : '0';
+  const netProfit = grossProfit - totalCommissions;
+  const netMarginPct = totalRepairRevenue > 0 ? ((netProfit / totalRepairRevenue) * 100).toFixed(1) : '0';
+
   const pendingCollection = repairs
     .filter(r => r.status === 'READY')
-    .reduce((s, r) => s + (r.estimatedCost - r.advancePaid), 0);
+    .reduce((s, r) => s + Math.max(0, r.estimatedCost - (r.advancePaid || 0)), 0);
 
   const filteredRepairs = repairs.filter(r => {
     if (filterTech !== 'ALL' && r.technicianName !== filterTech) return false;
@@ -93,9 +123,6 @@ export default function RepairsPage() {
 
   const handleReassign = (jobId: string, techName: string) => {
     updateRepairStatus(jobId, repairs.find(r => r.id === jobId)?.status || 'DIAGNOSING', undefined);
-    // optimistically update technicianName in the UI via updateRepairStatus notes hack
-    // We use the store's updateRepairStatus and pass the tech name as a note marker
-    // Real solution: extend store — for now surface through notes field
     alert(`Reassignment saved: ${techName} assigned to job ${jobId}`);
   };
 
@@ -107,8 +134,8 @@ export default function RepairsPage() {
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-amber-200 text-xs font-semibold uppercase tracking-wider mb-2 border border-white/10">
             Service Centre Management
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold">Repair Centre Control</h1>
-          <p className="text-amber-200 text-sm mt-0.5">Assign tasks · Track pipeline · Manage spare parts</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Repair Centre Control & Financials</h1>
+          <p className="text-amber-200 text-sm mt-0.5">Revenue · Profit Margins · Technician Commissions · Pipeline</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -118,22 +145,77 @@ export default function RepairsPage() {
         </button>
       </div>
 
-      {/* KPI Cards */}
+      {/* Financial Health Overview Bar (Requested by user) */}
+      <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+          <div>
+            <h2 className="font-bold text-gray-900 text-base">Service Centre Financial Breakdown</h2>
+            <p className="text-xs text-gray-500">Realized earnings from completed & delivered repairs</p>
+          </div>
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border">
+            <span>Completed Tickets: <strong>{completedRepairs.length}</strong></span>
+            <span>·</span>
+            <span>Active Bench: <strong>{activeRepairs.length}</strong></span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="bg-green-50/70 border border-green-200/60 rounded-xl p-3.5">
+            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">Total Repair Revenue</p>
+            <p className="text-2xl font-black text-green-700 mt-1">{formatINR(totalRepairRevenue)}</p>
+            <p className="text-[11px] text-green-700/80 mt-0.5">Billed service charges</p>
+          </div>
+
+          <div className="bg-orange-50/70 border border-orange-200/60 rounded-xl p-3.5">
+            <p className="text-xs font-semibold text-orange-800 uppercase tracking-wide">Parts Consumed</p>
+            <p className="text-2xl font-black text-orange-700 mt-1">{formatINR(totalPartsCost)}</p>
+            <p className="text-[11px] text-orange-700/80 mt-0.5">Screens, batteries & flex</p>
+          </div>
+
+          <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-3.5">
+            <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">Gross Margin</p>
+            <p className="text-2xl font-black text-blue-700 mt-1">{formatINR(grossProfit)}</p>
+            <p className="text-[11px] text-blue-700/80 mt-0.5">{grossMarginPct}% gross margin</p>
+          </div>
+
+          <div className="bg-purple-50/70 border border-purple-200/60 rounded-xl p-3.5">
+            <p className="text-xs font-semibold text-purple-800 uppercase tracking-wide">Tech Commissions</p>
+            <p className="text-2xl font-black text-purple-700 mt-1">{formatINR(totalCommissions)}</p>
+            <p className="text-[11px] text-purple-700/80 mt-0.5">5.0% incentive payable</p>
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3.5 col-span-2 sm:col-span-1">
+            <p className="text-xs font-semibold text-emerald-900 uppercase tracking-wide">Shop Net Profit</p>
+            <p className="text-2xl font-black text-emerald-700 mt-1">{formatINR(netProfit)}</p>
+            <p className="text-[11px] text-emerald-800 font-semibold mt-0.5">{netMarginPct}% net margin</p>
+          </div>
+        </div>
+
+        {/* Accounting Calculation Formula Explanation Box */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <strong className="text-slate-800">Accounting Formula:</strong> Gross Profit = Repair Revenue ({formatINR(totalRepairRevenue)}) − Spare Parts Cost ({formatINR(totalPartsCost)}) = <span className="font-semibold text-blue-700">{formatINR(grossProfit)}</span>. Net Profit = Gross Profit − Tech Commissions ({formatINR(totalCommissions)}) = <span className="font-semibold text-emerald-700">{formatINR(netProfit)}</span>.
+          </div>
+          <span className="text-[11px] text-slate-500 whitespace-nowrap">Advance Held: {formatINR(totalAdvanceCollected)}</span>
+        </div>
+      </div>
+
+      {/* Operational KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Active Jobs</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">Active Bench Jobs</p>
           <p className="text-2xl font-bold text-orange-600 mt-1">{activeRepairs.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Across all technicians</p>
+          <p className="text-xs text-gray-400 mt-1">Currently being serviced</p>
         </div>
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Awaiting Parts</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">Awaiting Spare Parts</p>
           <p className="text-2xl font-bold text-orange-500 mt-1">{partsNeeded.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Blocked on spare parts</p>
+          <p className="text-xs text-gray-400 mt-1">Blocked until stock arrives</p>
         </div>
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Repair Revenue</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">{formatINR(totalRevenue)}</p>
-          <p className="text-xs text-gray-400 mt-1">Ready + Delivered jobs</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">Repaired & Ready</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{repairs.filter(r => r.status === 'READY').length}</p>
+          <p className="text-xs text-gray-400 mt-1">Awaiting customer collection</p>
         </div>
         <div className={`rounded-xl p-4 border shadow-sm ${pendingCollection > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white'}`}>
           <p className="text-xs font-semibold text-gray-500 uppercase">Pending Collection</p>
@@ -143,24 +225,25 @@ export default function RepairsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit overflow-x-auto">
         {([
-          { key: 'pipeline', label: 'Pipeline View' },
-          { key: 'all',      label: `All Jobs (${repairs.length})` },
-          { key: 'parts',    label: `Parts Requests (${partsNeeded.length})` },
-          { key: 'delivered', label: 'Delivered' },
+          { key: 'pipeline',   label: 'Pipeline View' },
+          { key: 'all',        label: `All Jobs (${repairs.length})` },
+          { key: 'financials', label: 'Financial Audit' },
+          { key: 'parts',      label: `Parts Requests (${partsNeeded.length})` },
+          { key: 'delivered',  label: 'Delivered' },
         ] as { key: Tab; label: string }[]).map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* ——— PIPELINE TAB ——— */}
+      {/* --- PIPELINE TAB --- */}
       {tab === 'pipeline' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {PIPELINE_STAGES.map(stage => {
@@ -224,10 +307,79 @@ export default function RepairsPage() {
         </div>
       )}
 
-      {/* ——— ALL JOBS TAB ——— */}
+      {/* --- FINANCIAL AUDIT TAB (New) --- */}
+      {tab === 'financials' && (
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">Ticket-Level Repair Margin & Profit Breakdown</h3>
+              <p className="text-xs text-gray-500">Revenue, hardware parts cost, commissions, and net profit per ticket</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Total Net Profit</p>
+              <p className="text-lg font-black text-emerald-700">{formatINR(netProfit)} ({netMarginPct}%)</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Device & Customer</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Technician</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Revenue</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Parts Cost</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Gross Margin</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Commission (5%)</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Shop Net Profit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {repairs.map(job => {
+                  const partsCost = calculatePartsCost(job);
+                  const comm = calculateCommission(job);
+                  const jobGross = job.estimatedCost - partsCost;
+                  const jobNet = jobGross - comm;
+                  const marginPct = job.estimatedCost > 0 ? ((jobNet / job.estimatedCost) * 100).toFixed(0) : '0';
+
+                  return (
+                    <tr key={job.id} className="hover:bg-gray-50 transition">
+                      <td className="px-5 py-3 font-mono text-xs font-bold text-blue-700">{job.ticketNumber}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-900">{job.deviceModel}</p>
+                        <p className="text-xs text-gray-400">{job.customerName}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700">{job.technicianName}</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">{formatINR(job.estimatedCost)}</td>
+                      <td className="px-4 py-3 text-right text-orange-600 font-medium">{formatINR(partsCost)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-700">{formatINR(jobGross)}</td>
+                      <td className="px-4 py-3 text-right text-purple-700 font-medium">{formatINR(comm)}</td>
+                      <td className="px-5 py-3 text-right">
+                        <p className="font-black text-emerald-700">{formatINR(jobNet)}</p>
+                        <p className="text-[11px] text-emerald-600">{marginPct}% margin</p>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t-2 font-bold">
+                <tr>
+                  <td colSpan={3} className="px-5 py-3 text-gray-800">Total Financial Summary</td>
+                  <td className="px-4 py-3 text-right text-green-700">{formatINR(totalRepairRevenue)}</td>
+                  <td className="px-4 py-3 text-right text-orange-600">{formatINR(totalPartsCost)}</td>
+                  <td className="px-4 py-3 text-right text-blue-700">{formatINR(grossProfit)}</td>
+                  <td className="px-4 py-3 text-right text-purple-700">{formatINR(totalCommissions)}</td>
+                  <td className="px-5 py-3 text-right text-emerald-700 text-base">{formatINR(netProfit)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* --- ALL JOBS TAB --- */}
       {tab === 'all' && (
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          {/* Filters */}
           <div className="px-5 py-3 border-b bg-gray-50 flex flex-wrap gap-3 items-center">
             <div>
               <label className="text-xs font-semibold text-gray-500 mr-1.5">Technician:</label>
@@ -307,10 +459,9 @@ export default function RepairsPage() {
         </div>
       )}
 
-      {/* ——— SPARE PARTS REQUESTS TAB ——— */}
+      {/* --- SPARE PARTS REQUESTS TAB --- */}
       {tab === 'parts' && (
         <div className="space-y-4">
-          {/* Jobs blocked on parts */}
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b bg-orange-50">
               <h3 className="font-semibold text-gray-900 text-sm">Jobs Blocked — Waiting for Spare Parts</h3>
@@ -346,7 +497,6 @@ export default function RepairsPage() {
             )}
           </div>
 
-          {/* Spare Parts Inventory */}
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b">
               <h3 className="font-semibold text-gray-900 text-sm">Available Spare Parts in Inventory</h3>
@@ -392,7 +542,7 @@ export default function RepairsPage() {
         </div>
       )}
 
-      {/* ——— DELIVERED TAB ——— */}
+      {/* --- DELIVERED TAB --- */}
       {tab === 'delivered' && (
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="px-5 py-3.5 border-b">
@@ -423,7 +573,7 @@ export default function RepairsPage() {
         </div>
       )}
 
-      {/* ——— NEW JOB MODAL ——— */}
+      {/* --- NEW JOB MODAL --- */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -465,6 +615,10 @@ export default function RepairsPage() {
                   {technicians.map(t => <option key={t.id} value={t.name}>{t.name} ({t.role})</option>)}
                   {technicians.length === 0 && <option value="Amit Verma">Amit Verma</option>}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Spare Parts Needed (Optional)</label>
+                <input type="text" placeholder="e.g. Original iPhone 13 OLED Display" value={form.partsUsed} onChange={e => setForm({ ...form, partsUsed: e.target.value })} className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-400 outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

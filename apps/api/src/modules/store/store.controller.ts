@@ -125,6 +125,15 @@ export class StoreController {
   }
 
   /**
+   * DELETE /api/v1/store/sales/:id
+   */
+  @Delete('sales/:id')
+  async deleteSale(@Param('id') id: string) {
+    const data = await this.storeService.deleteSale(id);
+    return { success: true, data };
+  }
+
+  /**
    * POST /api/v1/store/suppliers
    */
   @Post('suppliers')

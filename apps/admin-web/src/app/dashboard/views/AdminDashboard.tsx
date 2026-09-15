@@ -23,37 +23,58 @@ export default function AdminDashboard({ user }: { user: AuthUser | null }) {
   const activeProducts = products.filter(p => p.status === 'ACTIVE');
   const completedSales = sales.filter(s => s.status === 'COMPLETED' || s.status === 'PAID');
 
-  // Revenue
-  const totalRevenue = completedSales.reduce((sum, s) => sum + s.total, 0);
+  // 1. Sales Financials & COGS
+  const salesRevenue = completedSales.reduce((sum, s) => sum + s.total, 0);
   const totalDiscount = completedSales.reduce((sum, s) => sum + (s.discount || 0), 0);
-  const avgOrderValue = completedSales.length > 0 ? totalRevenue / completedSales.length : 0;
+  const avgOrderValue = completedSales.length > 0 ? salesRevenue / completedSales.length : 0;
 
-  // Inventory
+  const salesCOGS = completedSales.reduce((sum, s) => {
+    if (s.cogs && s.cogs > 0) return sum + s.cogs;
+    if (s.items && s.items.length > 0) {
+      return sum + s.items.reduce((iSum, i) => iSum + i.qty * (i.unitCost || 0), 0);
+    }
+    return sum + Math.round(s.total * 0.78);
+  }, 0);
+
+  // 2. Repair Financials & Spare Parts Cost
+  const completedRepairs = repairs.filter(r => r.status === 'READY' || r.status === 'DELIVERED');
+  const repairRevenue = completedRepairs.reduce((sum, r) => sum + r.estimatedCost, 0);
+  const repairPartsCost = completedRepairs.reduce((sum, r) => {
+    if (!r.partsUsed || r.partsUsed.trim() === '') return sum + Math.round(r.estimatedCost * 0.25);
+    const matched = products.find(p => r.partsUsed?.toLowerCase().includes(p.name.toLowerCase()));
+    return sum + (matched ? matched.purchasePrice : Math.round(r.estimatedCost * 0.35));
+  }, 0);
+  const techCommissions = completedRepairs.reduce((sum, r) => sum + Math.round(r.estimatedCost * 0.05), 0);
+
+  // 3. Combined Store Revenue & True Gross Profit
+  // Gross Profit = Total Revenue (Sales + Repairs) - Cost of Goods Sold (COGS + Parts)
+  const totalRevenue = salesRevenue + repairRevenue;
+  const totalCOGS = salesCOGS + repairPartsCost;
+  const grossProfit = totalRevenue - totalCOGS;
+  const grossMarginPct = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
+
+  // 4. Inventory Value & Safety Thresholds
   const inventoryValue = activeProducts.reduce((sum, p) => sum + p.stock * p.purchasePrice, 0);
   const inventorySRP = activeProducts.reduce((sum, p) => sum + p.stock * p.sellingPrice, 0);
   const potentialProfit = inventorySRP - inventoryValue;
   const lowStockItems = activeProducts.filter(p => p.stock <= p.minStock);
   const outOfStockItems = activeProducts.filter(p => p.stock === 0);
 
-  // Payroll
+  // 5. Staff & Payroll
   const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
-  const totalStaffPayroll = activeEmployees.reduce((sum, e) => {
-    const commission = (e.commissionRate / 100) * e.totalSalesMonth;
-    return sum + e.baseSalary + commission;
-  }, 0);
+  const totalStaffSalesCommission = activeEmployees.reduce((sum, e) => sum + (e.commissionRate / 100) * e.totalSalesMonth, 0);
+  const totalStaffPayroll = activeEmployees.reduce((sum, e) => sum + e.baseSalary + (e.commissionRate / 100) * e.totalSalesMonth, 0);
   const presentStaff = activeEmployees.filter(e => e.todayAttendance === 'PRESENT').length;
-  const totalCommission = activeEmployees.reduce((sum, e) => sum + (e.commissionRate / 100) * e.totalSalesMonth, 0);
 
-  // Profit
-  const totalPurchaseCost = purchases.reduce((sum, p) => sum + p.total, 0);
-  const grossProfit = totalRevenue - totalPurchaseCost;
-  const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
+  // 6. Net Operating Profit
+  const netProfit = grossProfit - (totalStaffPayroll + techCommissions);
+  const netMarginPct = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
 
-  // Repairs
+  // Active repairs
   const pendingRepairs = repairs.filter(r => r.status !== 'DELIVERED').length;
   const readyRepairs = repairs.filter(r => r.status === 'READY').length;
 
-  // Today's activity (using stock movements as proxy for today)
+  // Today's activity
   const todaySales = completedSales.slice(0, 10);
 
   return (
@@ -75,9 +96,22 @@ export default function AdminDashboard({ user }: { user: AuthUser | null }) {
           <Link href="/dashboard/sales" className="px-4 py-2 bg-white text-slate-900 rounded-xl text-sm font-semibold hover:bg-blue-50 transition shadow">
             Open POS
           </Link>
+          <Link href="/dashboard/repairs" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition shadow">
+            Repairs
+          </Link>
           <Link href="/dashboard/products" className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-xl text-sm font-semibold hover:bg-white/20 transition">
             Add Product
           </Link>
+        </div>
+      </div>
+
+      {/* Financial Accounting Info Bar */}
+      <div className="bg-white rounded-xl border p-3.5 text-xs text-gray-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+        <div>
+          <strong className="text-gray-900">Gross Profit Calculation:</strong> Combined Revenue ({formatINR(totalRevenue)} = Sales {formatINR(salesRevenue)} + Repairs {formatINR(repairRevenue)}) − COGS ({formatINR(totalCOGS)} = Product Cost {formatINR(salesCOGS)} + Parts {formatINR(repairPartsCost)}) = <span className="font-bold text-green-700">{formatINR(grossProfit)} ({grossMarginPct}%)</span>.
+        </div>
+        <div className="text-[11px] text-gray-500">
+          Net Profit after Staff & Tech Payroll: <span className="font-bold text-emerald-700">{formatINR(netProfit)} ({netMarginPct}%)</span>
         </div>
       </div>
 
@@ -86,22 +120,22 @@ export default function AdminDashboard({ user }: { user: AuthUser | null }) {
         <div className="bg-white rounded-xl p-4 border shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Revenue</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(totalRevenue)}</p>
-          <p className="text-xs text-gray-400 mt-1">{completedSales.length} sales · Avg {formatINR(Math.round(avgOrderValue))}</p>
+          <p className="text-xs text-gray-400 mt-1">Sales: {formatINR(salesRevenue)} · Repairs: {formatINR(repairRevenue)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Gross Profit</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">True Gross Profit</p>
           <p className={`text-2xl font-bold mt-1 ${grossProfit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatINR(grossProfit)}</p>
-          <p className="text-xs text-gray-400 mt-1">Margin: {profitMargin}% · Discount given: {formatINR(totalDiscount)}</p>
+          <p className="text-xs text-gray-400 mt-1">Margin: {grossMarginPct}% · COGS: {formatINR(totalCOGS)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory Value</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory Asset Value</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(inventoryValue)}</p>
-          <p className="text-xs text-gray-400 mt-1">{activeProducts.length} SKUs · Potential upside {formatINR(potentialProfit)}</p>
+          <p className="text-xs text-gray-400 mt-1">{activeProducts.length} SKUs · Potential profit {formatINR(potentialProfit)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Monthly Payroll</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(totalStaffPayroll)}</p>
-          <p className="text-xs text-gray-400 mt-1">{presentStaff}/{activeEmployees.length} on duty · Commission {formatINR(Math.round(totalCommission))}</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Business Profit</p>
+          <p className={`text-2xl font-bold mt-1 ${netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatINR(netProfit)}</p>
+          <p className="text-xs text-gray-400 mt-1">After payroll ({formatINR(totalStaffPayroll + techCommissions)})</p>
         </div>
       </div>
 

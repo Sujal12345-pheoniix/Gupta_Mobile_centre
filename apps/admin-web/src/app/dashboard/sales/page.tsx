@@ -15,10 +15,21 @@ export default function SalesPage() {
   const isAdmin = roles.includes('Admin');
   const isStaff = roles.includes('Staff');
 
-  const { sales, products, recordSale } = useStore();
+  const { sales, products, recordSale, deleteSale } = useStore();
   const [view, setView] = useState<'list' | 'pos'>('list');
   const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
   const [search, setSearch] = useState('');
+
+  const handleDelete = async (sale: SaleRecord, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!isAdmin) return alert('Only administrators can delete sales records.');
+    if (confirm(`Are you sure you want to delete invoice ${sale.invoiceNumber} (Total: ${formatINR(sale.total)})? The items sold will be returned to store inventory.`)) {
+      await deleteSale(sale.id);
+      if (selectedSale?.id === sale.id) {
+        setSelectedSale(null);
+      }
+    }
+  };
   // POS state
   const [productSearch, setProductSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -214,6 +225,7 @@ export default function SalesPage() {
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Payment</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Staff</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
+                {isAdmin && <th className="text-center px-4 py-3 font-medium text-gray-600">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -234,6 +246,17 @@ export default function SalesPage() {
                   <td className="px-4 py-3 text-center">
                     <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">{s.status}</span>
                   </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={e => handleDelete(s, e)}
+                        className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                        title="Delete sale and return items to inventory"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -262,6 +285,16 @@ export default function SalesPage() {
               <div className="flex justify-between"><span className="text-gray-500">Payment Mode</span>
                 <span className="font-medium">{selectedSale.paymentMethod}</span>
               </div>
+              {isAdmin && (
+                <div className="pt-3 border-t">
+                  <button
+                    onClick={() => handleDelete(selectedSale)}
+                    className="w-full py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-xl text-sm font-semibold transition border border-red-200"
+                  >
+                    Delete Sale (Restore Inventory)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

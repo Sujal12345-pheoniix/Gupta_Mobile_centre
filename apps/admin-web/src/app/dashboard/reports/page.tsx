@@ -13,30 +13,63 @@ export default function ReportsPage() {
   const isManager = roles.includes('Manager') || isAdmin;
 
   // Pull real live data from the global store (connected to Neon PostgreSQL)
-  const { products, sales, employees, purchases, isDbConnected } = useStore();
+  const { products, sales, employees, purchases, repairs, isDbConnected } = useStore();
 
   const [activeReport, setActiveReport] = useState<'sales' | 'inventory' | 'staff' | 'profit'>('sales');
 
-  // Sales Analytics — computed from real DB-synced data
-  const totalRevenue = sales.reduce((s, x) => s + x.total, 0);
-  const totalDiscount = sales.reduce((s, x) => s + x.discount, 0);
-  const totalTax = sales.reduce((s, x) => s + x.tax, 0);
-  const avgOrderValue = sales.length > 0 ? totalRevenue / sales.length : 0;
-  const paymentBreakdown = sales.reduce((acc, s) => {
+  // 1. Sales Analytics
+  const completedSales = sales.filter(s => s.status === 'COMPLETED' || s.status === 'PAID');
+  const salesRevenue = completedSales.reduce((s, x) => s + x.total, 0);
+  const totalRevenue = salesRevenue;
+  const totalDiscount = completedSales.reduce((s, x) => s + x.discount, 0);
+  const totalTax = completedSales.reduce((s, x) => s + x.tax, 0);
+  const avgOrderValue = completedSales.length > 0 ? salesRevenue / completedSales.length : 0;
+  const paymentBreakdown = completedSales.reduce((acc, s) => {
     acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
     return acc;
   }, {} as Record<string, number>);
+
+  // 2. Cost of Goods Sold (COGS) for products sold
+  const salesCOGS = completedSales.reduce((sum, s) => {
+    if (s.cogs && s.cogs > 0) return sum + s.cogs;
+    if (s.items && s.items.length > 0) {
+      return sum + s.items.reduce((iSum, i) => iSum + i.qty * (i.unitCost || 0), 0);
+    }
+    return sum + Math.round(s.total * 0.78);
+  }, 0);
+
+  // 3. Repair Servicing Revenue & Spare Parts Costs
+  const completedRepairs = repairs.filter(r => r.status === 'READY' || r.status === 'DELIVERED');
+  const repairRevenue = completedRepairs.reduce((s, r) => s + r.estimatedCost, 0);
+  const repairPartsCost = completedRepairs.reduce((sum, r) => {
+    if (!r.partsUsed || r.partsUsed.trim() === '') return sum + Math.round(r.estimatedCost * 0.25);
+    const matched = products.find(p => r.partsUsed?.toLowerCase().includes(p.name.toLowerCase()));
+    return sum + (matched ? matched.purchasePrice : Math.round(r.estimatedCost * 0.35));
+  }, 0);
+  const techCommissions = completedRepairs.reduce((sum, r) => sum + Math.round(r.estimatedCost * 0.05), 0);
+
+  // 4. Combined Business Revenue & True Gross Profit
+  const totalCombinedRevenue = salesRevenue + repairRevenue;
+  const totalCOGS = salesCOGS + repairPartsCost;
+  const grossProfit = totalCombinedRevenue - totalCOGS;
+  const grossMarginPct = totalCombinedRevenue > 0 ? ((grossProfit / totalCombinedRevenue) * 100).toFixed(1) : '0';
+
+  // 5. Operating Expenses & Net Business Profit
+  const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
+  const staffSalesCommissions = activeEmployees.reduce((sum, e) => sum + (e.commissionRate / 100) * e.totalSalesMonth, 0);
+  const staffBaseSalaries = activeEmployees.reduce((sum, e) => sum + e.baseSalary, 0);
+  const totalOperatingExpenses = staffBaseSalaries + staffSalesCommissions + techCommissions;
+  const netBusinessProfit = grossProfit - totalOperatingExpenses;
+  const netMarginPct = totalCombinedRevenue > 0 ? ((netBusinessProfit / totalCombinedRevenue) * 100).toFixed(1) : '0';
+
+  // 6. Purchases (Capitalized Inventory Purchases)
+  const totalPurchaseOrdersCost = purchases.reduce((s, p) => s + p.total, 0);
 
   // Staff performance — from real sales transactions
   const staffSales = sales.reduce((acc, s) => {
     acc[s.staffName] = (acc[s.staffName] || 0) + s.total;
     return acc;
   }, {} as Record<string, number>);
-
-  // Profit calc — using purchases total as COGS
-  const totalPurchaseCost = purchases.reduce((s, p) => s + p.total, 0);
-  const grossProfit = totalRevenue - totalPurchaseCost;
-  const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
   // Product margins — from real product catalog
   const activeProducts = products.filter(p => p.status === 'ACTIVE');
@@ -59,10 +92,10 @@ export default function ReportsPage() {
   }, {} as Record<string, { count: number; value: number }>);
 
   const reports = [
-    { id: 'sales', label: '💰 Sales Report', access: true },
-    { id: 'profit', label: '📈 Profit & Loss', access: isAdmin || isManager },
-    { id: 'inventory', label: '📦 Inventory Report', access: true },
-    { id: 'staff', label: '👤 Staff Performance', access: isAdmin || isManager },
+    { id: 'sales', label: 'Sales Report', access: true },
+    { id: 'profit', label: 'Profit & Loss Statement', access: isAdmin || isManager },
+    { id: 'inventory', label: 'Inventory Report', access: true },
+    { id: 'staff', label: 'Staff Performance', access: isAdmin || isManager },
   ];
 
   return (
@@ -153,18 +186,114 @@ export default function ReportsPage() {
 
       {activeReport === 'profit' && (isAdmin || isManager) && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: 'Total Revenue', value: formatINR(totalRevenue), sub: `${sales.length} sales transactions`, color: 'bg-green-50 border-green-200', text: 'text-green-700' },
-              { label: 'Total Purchase Cost', value: formatINR(totalPurchaseCost), sub: `${purchases.length} purchase orders`, color: 'bg-red-50 border-red-200', text: 'text-red-600' },
-              { label: 'Gross Profit', value: formatINR(grossProfit), sub: `Margin: ${profitMargin}%`, color: 'bg-blue-50 border-blue-200', text: 'text-blue-700' },
-            ].map(stat => (
-              <div key={stat.label} className={`rounded-xl border p-5 ${stat.color}`}>
-                <p className="text-sm text-gray-600">{stat.label}</p>
-                <p className={`text-2xl font-bold mt-1 ${stat.text}`}>{stat.value}</p>
-                <p className="text-xs text-gray-400 mt-1">{stat.sub}</p>
-              </div>
-            ))}
+          {/* Top 4 Financial KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl border p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Combined Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(totalCombinedRevenue)}</p>
+              <p className="text-xs text-gray-400 mt-1">Sales: {formatINR(salesRevenue)} · Repairs: {formatINR(repairRevenue)}</p>
+            </div>
+            <div className="bg-white rounded-xl border p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Cost of Goods Sold (COGS)</p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{formatINR(totalCOGS)}</p>
+              <p className="text-xs text-gray-400 mt-1">Stock cost: {formatINR(salesCOGS)} · Parts: {formatINR(repairPartsCost)}</p>
+            </div>
+            <div className="bg-white rounded-xl border p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">True Gross Profit</p>
+              <p className={`text-2xl font-bold mt-1 ${grossProfit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatINR(grossProfit)}</p>
+              <p className="text-xs text-green-600 font-semibold mt-1">Margin: {grossMarginPct}%</p>
+            </div>
+            <div className="bg-white rounded-xl border p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Net Business Profit</p>
+              <p className={`text-2xl font-bold mt-1 ${netBusinessProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatINR(netBusinessProfit)}</p>
+              <p className="text-xs text-emerald-600 font-semibold mt-1">Net Margin: {netMarginPct}%</p>
+            </div>
+          </div>
+
+          {/* Educational Accounting Explanation Box */}
+          <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-xs text-blue-900 space-y-1.5">
+            <h4 className="font-bold text-sm text-blue-950">How Gross Profit & Net Profit are Calculated:</h4>
+            <ul className="list-disc list-inside space-y-1 text-blue-800">
+              <li><strong>Gross Profit</strong> = Combined Revenue ({formatINR(totalCombinedRevenue)}) − Cost of Goods Sold ({formatINR(totalCOGS)}) = <span className="font-bold text-blue-900">{formatINR(grossProfit)}</span>.</li>
+              <li><strong>Cost of Goods Sold (COGS)</strong> includes only the purchase cost of the actual phones, accessories, and spare parts that were delivered/sold to customers.</li>
+              <li><strong>Wholesale Stock Purchases ({formatINR(totalPurchaseOrdersCost)})</strong> are balance-sheet inventory assets, NOT deducted as one-day operating expenses.</li>
+              <li><strong>Net Operating Profit</strong> = Gross Profit − Staff Base Salaries ({formatINR(staffBaseSalaries)}) − Staff Commissions ({formatINR(staffSalesCommissions)}) − Tech Commissions ({formatINR(techCommissions)}) = <span className="font-bold text-emerald-800">{formatINR(netBusinessProfit)}</span>.</li>
+            </ul>
+          </div>
+
+          {/* Formal Income Statement Table */}
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b font-bold text-gray-900 text-sm">Income Statement (Profit & Loss Breakdown)</div>
+            <table className="w-full text-sm">
+              <tbody className="divide-y">
+                <tr className="bg-gray-50/70 font-semibold text-gray-700">
+                  <td className="px-5 py-2.5" colSpan={2}>1. REVENUE (INCOME)</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">In-Store Product Sales (POS)</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-gray-900">{formatINR(salesRevenue)}</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Mobile Service & Repair Revenue</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-gray-900">{formatINR(repairRevenue)}</td>
+                </tr>
+                <tr className="bg-green-50/60 font-bold text-green-900">
+                  <td className="px-5 py-3">Total Operating Revenue</td>
+                  <td className="px-5 py-3 text-right text-base">{formatINR(totalCombinedRevenue)}</td>
+                </tr>
+
+                <tr className="bg-gray-50/70 font-semibold text-gray-700">
+                  <td className="px-5 py-2.5" colSpan={2}>2. DIRECT COST OF GOODS SOLD (COGS)</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Cost of Products Sold (Wholesale Unit Cost)</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-orange-700">− {formatINR(salesCOGS)}</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Cost of Spare Parts Consumed (Displays, Batteries, Flex)</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-orange-700">− {formatINR(repairPartsCost)}</td>
+                </tr>
+                <tr className="bg-orange-50/60 font-bold text-orange-900">
+                  <td className="px-5 py-3">Total Cost of Goods Sold (COGS)</td>
+                  <td className="px-5 py-3 text-right text-base">− {formatINR(totalCOGS)}</td>
+                </tr>
+
+                <tr className="bg-blue-50/80 font-black text-blue-950 text-base">
+                  <td className="px-5 py-3.5">GROSS PROFIT (Margin: {grossMarginPct}%)</td>
+                  <td className="px-5 py-3.5 text-right text-green-700">{formatINR(grossProfit)}</td>
+                </tr>
+
+                <tr className="bg-gray-50/70 font-semibold text-gray-700">
+                  <td className="px-5 py-2.5" colSpan={2}>3. OPERATING EXPENSES (STAFF & PAYROLL)</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Staff Base Salaries ({activeEmployees.length} active staff)</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-red-600">− {formatINR(staffBaseSalaries)}</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Staff Sales Commissions</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-red-600">− {formatINR(staffSalesCommissions)}</td>
+                </tr>
+                <tr>
+                  <td className="px-8 py-2.5 text-gray-600">Technician Repair Commissions (5.0%)</td>
+                  <td className="px-5 py-2.5 text-right font-medium text-red-600">− {formatINR(techCommissions)}</td>
+                </tr>
+                <tr className="bg-red-50/60 font-bold text-red-900">
+                  <td className="px-5 py-3">Total Operating Expenses (OpEx)</td>
+                  <td className="px-5 py-3 text-right text-base">− {formatINR(totalOperatingExpenses)}</td>
+                </tr>
+
+                <tr className="bg-emerald-100 font-black text-emerald-950 text-lg">
+                  <td className="px-5 py-4">NET BUSINESS PROFIT (Net Margin: {netMarginPct}%)</td>
+                  <td className="px-5 py-4 text-right text-emerald-800">{formatINR(netBusinessProfit)}</td>
+                </tr>
+
+                <tr className="bg-slate-50 text-xs text-slate-500">
+                  <td className="px-5 py-2.5">Capitalized Inventory Purchases (Balance Sheet Asset)</td>
+                  <td className="px-5 py-2.5 text-right font-medium">{formatINR(totalPurchaseOrdersCost)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div className="bg-white rounded-xl border overflow-hidden">
             <div className="px-5 py-4 border-b font-semibold text-gray-900">Product Profit Margins — Sorted by Margin %</div>

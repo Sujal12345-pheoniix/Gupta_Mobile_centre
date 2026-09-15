@@ -50,6 +50,7 @@ interface StoreContextType {
   // Sales
   sales: SaleRecord[];
   recordSale: (sale: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]) => Promise<SaleRecord>;
+  deleteSale: (id: string) => Promise<void>;
 
   // Purchases & Suppliers
   purchases: PurchaseRecord[];
@@ -409,11 +410,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Sales (POS) (Saving to Neon PostgreSQL)
   const recordSale = async (saleData: Omit<SaleRecord, 'id' | 'invoiceNumber' | 'date'>, cartItems: { product: ProductItem; qty: number }[]): Promise<SaleRecord> => {
     const invoiceNumber = `GMC-${1000 + sales.length + 1}`;
+    const cogs = cartItems.reduce((sum, c) => sum + c.product.purchasePrice * c.qty, 0);
     const newSale: SaleRecord = {
       ...saleData,
       id: `s-${Date.now()}`,
       invoiceNumber,
-      date: new Date().toLocaleString('en-IN')
+      date: new Date().toLocaleString('en-IN'),
+      cogs,
+      items: cartItems.map(c => ({
+        sku: c.product.sku,
+        name: c.product.name,
+        qty: c.qty,
+        unitPrice: c.product.sellingPrice,
+        unitCost: c.product.purchasePrice
+      }))
     };
 
     setSales(prev => [newSale, ...prev]);
@@ -467,6 +477,66 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     return newSale;
+  };
+
+  const deleteSale = async (id: string) => {
+    const saleToDelete = sales.find(s => s.id === id);
+    setSales(prev => prev.filter(s => s.id !== id));
+
+    // If sale had items or related stock movements, restore stock
+    if (saleToDelete) {
+      if (saleToDelete.items && saleToDelete.items.length > 0) {
+        setProducts(prevProducts => {
+          return prevProducts.map(prod => {
+            const item = saleToDelete.items?.find(i => i.sku === prod.sku);
+            if (item) {
+              return { ...prod, stock: prod.stock + item.qty };
+            }
+            return prod;
+          });
+        });
+      } else {
+        // Fallback: search stock movements for this invoice number
+        const related = stockMovements.filter(m => m.reason?.includes(saleToDelete.invoiceNumber) && m.type === 'SALE');
+        if (related.length > 0) {
+          setProducts(prevProducts => {
+            return prevProducts.map(prod => {
+              const mv = related.find(m => m.sku === prod.sku);
+              if (mv) {
+                return { ...prod, stock: prod.stock + Math.abs(mv.quantity) };
+              }
+              return prod;
+            });
+          });
+        }
+      }
+
+      // Add a customer return stock movement for transparency
+      setStockMovements(prev => [
+        {
+          id: `sm-${Date.now()}-return`,
+          date: new Date().toLocaleString('en-IN'),
+          sku: 'RESTORE',
+          productName: `Reversal of ${saleToDelete.invoiceNumber}`,
+          type: 'CUSTOMER_RETURN',
+          quantity: saleToDelete.itemsCount,
+          reason: `Invoice ${saleToDelete.invoiceNumber} deleted by Admin`,
+          actor: 'Admin'
+        },
+        ...prev
+      ]);
+    }
+
+    try {
+      await api.deleteSale(id);
+      setIsDbConnected(true);
+      // Re-sync after 1.5s
+      setTimeout(() => {
+        refreshFromDb();
+      }, 1500);
+    } catch (err) {
+      console.warn('Database delete sale failed, cached locally:', err);
+    }
   };
 
   // Repairs
@@ -613,6 +683,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         markAttendance,
         sales,
         recordSale,
+        deleteSale,
         purchases,
         suppliers,
         addSupplier,

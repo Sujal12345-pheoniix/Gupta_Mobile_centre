@@ -1,4 +1,4 @@
-﻿export interface ProductItem {
+export interface ProductItem {
   id: string;
   name: string;
   category: string;
@@ -37,6 +37,8 @@ export interface SaleRecord {
   discount: number;
   tax: number;
   total: number;
+  cogs?: number;
+  items?: { sku?: string; name?: string; qty: number; unitPrice: number; unitCost?: number }[];
   paidAmount: number;
   paymentMethod: 'CASH' | 'UPI' | 'CARD' | 'SPLIT';
   status: 'COMPLETED' | 'PAID' | 'RETURNED';

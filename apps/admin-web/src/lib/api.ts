@@ -236,6 +236,10 @@ class ApiClient {
     return this.request<any>('POST', '/store/sales', dto, { authenticated: false });
   }
 
+  async deleteSale(id: string): Promise<ApiResponse<any>> {
+    return this.request<any>('DELETE', `/store/sales/${id}`, undefined, { authenticated: false });
+  }
+
   async createSupplier(dto: any): Promise<ApiResponse<any>> {
     return this.request<any>('POST', '/store/suppliers', dto, { authenticated: false });
   }

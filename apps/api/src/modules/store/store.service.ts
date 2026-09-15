@@ -182,22 +182,31 @@ export class StoreService {
       take: 50,
     });
 
-    const sales = salesDb.map((s) => ({
-      id: s.id,
-      invoiceNumber: s.invoiceNumber,
-      date: s.createdAt.toLocaleString('en-IN'),
-      customerName: s.customer?.name || 'Walk-in Customer',
-      customerPhone: s.customer?.phone || '',
-      itemsCount: s.items.reduce((sum, item) => sum + Number(item.quantity), 0),
-      subtotal: Number(s.subtotal),
-      discount: Number(s.discountAmount),
-      tax: Number(s.taxAmount),
-      total: Number(s.total),
-      paidAmount: Number(s.paidAmount),
-      paymentMethod: (s.payments[0]?.method || 'CASH') as any,
-      status: s.status,
-      staffName: s.staff?.email?.split('@')[0] || 'Staff',
-    }));
+    const sales = salesDb.map((s) => {
+      const cogs = s.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitCost || 0), 0);
+      return {
+        id: s.id,
+        invoiceNumber: s.invoiceNumber,
+        date: s.createdAt.toLocaleString('en-IN'),
+        customerName: s.customer?.name || 'Walk-in Customer',
+        customerPhone: s.customer?.phone || '',
+        itemsCount: s.items.reduce((sum, item) => sum + Number(item.quantity), 0),
+        subtotal: Number(s.subtotal),
+        discount: Number(s.discountAmount),
+        tax: Number(s.taxAmount),
+        total: Number(s.total),
+        cogs,
+        paidAmount: Number(s.paidAmount),
+        paymentMethod: (s.payments[0]?.method || 'CASH') as any,
+        status: s.status,
+        staffName: s.staff?.email?.split('@')[0] || 'Staff',
+        items: s.items.map((i) => ({
+          qty: Number(i.quantity),
+          unitPrice: Number(i.unitPrice),
+          unitCost: Number(i.unitCost || 0),
+        })),
+      };
+    });
 
     // 6. Fetch Suppliers
     const suppliersDb = await this.prisma.supplier.findMany({
@@ -800,5 +809,66 @@ export class StoreService {
 
     this.logger.log(`✓ Purchase ${purchase.invoiceNumber} marked as RECEIVED`);
     return purchase;
+  }
+
+  /**
+   * DELETE SALE in Neon PostgreSQL
+   * Reverses the sale, restores the stock balance for each variant sold,
+   * creates RETURN stock movements, and deletes the sale record.
+   */
+  async deleteSale(id: string) {
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: {
+        items: true,
+        payments: true,
+      },
+    });
+
+    if (!sale) {
+      return { success: false, message: 'Sale record not found' };
+    }
+
+    const { branch } = await this.getOrCreateOrgAndBranch();
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Restore stock balance for each item in the sale
+      for (const item of sale.items) {
+        const balance = await tx.stockBalance.findUnique({
+          where: { branchId_variantId: { branchId: branch.id, variantId: item.variantId } },
+        });
+
+        const currentStock = balance ? Number(balance.quantity) : 0;
+        const restoredQty = Number(item.quantity);
+
+        await tx.stockBalance.upsert({
+          where: { branchId_variantId: { branchId: branch.id, variantId: item.variantId } },
+          update: { quantity: new Prisma.Decimal(currentStock + restoredQty) },
+          create: { branchId: branch.id, variantId: item.variantId, quantity: new Prisma.Decimal(restoredQty) },
+        });
+
+        // Record stock movement for the reversal/return
+        await tx.stockMovement.create({
+          data: {
+            branchId: branch.id,
+            variantId: item.variantId,
+            type: StockMovementType.CUSTOMER_RETURN,
+            quantity: new Prisma.Decimal(restoredQty),
+            unitCost: item.unitCost || new Prisma.Decimal(0),
+            reason: `Invoice ${sale.invoiceNumber} deleted/reversed by Admin`,
+            createdById: 'admin',
+            metadata: { actor: 'Admin' },
+          },
+        });
+      }
+
+      // 2. Delete related payments and sale items, then delete the sale
+      await tx.payment.deleteMany({ where: { saleId: id } });
+      await tx.saleItem.deleteMany({ where: { saleId: id } });
+      await tx.sale.delete({ where: { id } });
+    });
+
+    this.logger.log(`✓ Sale ${sale.invoiceNumber} deleted and stock restored`);
+    return { success: true };
   }
 }
