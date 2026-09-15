@@ -85,7 +85,7 @@ class ApiClient {
     method: string,
     path: string,
     body?: unknown,
-    options: { authenticated?: boolean } = {},
+    options: { authenticated?: boolean; timeoutMs?: number } = {},
   ): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${path}`;
     const headers: Record<string, string> = {
@@ -96,14 +96,21 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.getAccessToken()}`;
     }
 
+    // Abort after timeoutMs (default 8s) — prevents hang on Render cold-starts
+    const timeoutMs = options.timeoutMs ?? 8000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(url, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
         credentials: 'include',
+        signal: controller.signal,
       });
 
+      clearTimeout(timer);
       const data = await response.json();
 
       if (!response.ok) {
@@ -122,13 +129,14 @@ class ApiClient {
         data: data.data || data,
         message: data.message,
       };
-    } catch (error) {
-      console.error('API request failed:', error);
+    } catch (error: any) {
+      clearTimeout(timer);
+      const isTimeout = error?.name === 'AbortError';
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Network request failed',
+          code: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
+          message: isTimeout ? 'Request timed out' : 'Network request failed',
         },
       };
     }
@@ -149,7 +157,7 @@ class ApiClient {
   }
 
   async getMe(): Promise<ApiResponse<AuthUser>> {
-    return this.request<AuthUser>('GET', '/auth/me');
+    return this.request<AuthUser>('GET', '/auth/me', undefined, { timeoutMs: 5000 });
   }
 
   async refreshTokens(): Promise<ApiResponse<AuthTokens>> {
@@ -165,7 +173,7 @@ class ApiClient {
       'POST',
       '/auth/refresh',
       { refreshToken },
-      { authenticated: false },
+      { authenticated: false, timeoutMs: 5000 },
     );
 
     if (response.success && response.data) {
@@ -177,7 +185,7 @@ class ApiClient {
 
   // Live Database APIs connected to Neon PostgreSQL
   async getStoreData(): Promise<ApiResponse<any>> {
-    return this.request<any>('GET', '/store/data', undefined, { authenticated: false });
+    return this.request<any>('GET', '/store/data', undefined, { authenticated: false, timeoutMs: 15000 });
   }
 
   async createProduct(dto: any): Promise<ApiResponse<any>> {

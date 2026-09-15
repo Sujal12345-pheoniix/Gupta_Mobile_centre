@@ -16,15 +16,15 @@ interface NavItem {
 const ALL_ROLES = ['Admin', 'Manager', 'Staff', 'Technician'];
 
 const navItems: NavItem[] = [
-  { href: '/dashboard',            label: 'Dashboard',  icon: '📊', roles: ALL_ROLES },
-  { href: '/dashboard/products',   label: 'Products',   icon: '📦', roles: ALL_ROLES },
-  { href: '/dashboard/inventory',  label: 'Inventory',  icon: '📋', roles: ALL_ROLES },
-  { href: '/dashboard/sales',      label: 'Sales',      icon: '💰', roles: ['Admin', 'Manager', 'Staff'] },
-  { href: '/dashboard/purchases',  label: 'Purchases',  icon: '🛒', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/customers',  label: 'Customers',  icon: '👥', roles: ['Admin', 'Manager', 'Staff'] },
-  { href: '/dashboard/employees',  label: 'Employees',  icon: '👤', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/reports',    label: 'Reports',    icon: '📈', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/settings',   label: 'Settings',   icon: '⚙️',  roles: ['Admin'] },
+  { href: '/dashboard',            label: 'Dashboard',  icon: 'DB', roles: ALL_ROLES },
+  { href: '/dashboard/products',   label: 'Products',   icon: 'PR', roles: ALL_ROLES },
+  { href: '/dashboard/inventory',  label: 'Inventory',  icon: 'IN', roles: ALL_ROLES },
+  { href: '/dashboard/sales',      label: 'Sales / POS', icon: 'POS', roles: ['Admin', 'Manager', 'Staff'] },
+  { href: '/dashboard/purchases',  label: 'Purchases',  icon: 'PO', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/customers',  label: 'Customers',  icon: 'CU', roles: ['Admin', 'Manager', 'Staff'] },
+  { href: '/dashboard/employees',  label: 'Employees',  icon: 'HR', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/reports',    label: 'Reports',    icon: 'RP', roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/settings',   label: 'Settings',   icon: 'ST', roles: ['Admin'] },
 ];
 
 const roleColors: Record<string, string> = {
@@ -72,22 +72,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-md text-gray-600 hover:bg-gray-100">
-          <span className="text-2xl">☰</span>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
-        <span className="font-semibold text-gray-900">Gupta Mobile Centre</span>
-        <div className="w-10" />
+        <span className="font-bold text-gray-900 text-sm">Gupta Mobile Centre</span>
+        <div className="w-9" />
       </div>
 
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-40 h-screen w-60 bg-white border-r transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
           {/* Logo */}
           <div className="px-5 py-4 border-b">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">📱</span>
-              <h1 className="text-lg font-bold text-gray-900">GMC Admin</h1>
+            <div className="flex items-center gap-2.5 mb-0.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black">GMC</div>
+              <h1 className="text-base font-bold text-gray-900">Admin Portal</h1>
             </div>
-            <p className="text-xs text-gray-400">{user?.organizationName || 'Gupta Mobile Centre'}</p>
+            <p className="text-xs text-gray-400 pl-[42px]">{user?.organizationName || 'Gupta Mobile Centre'}</p>
           </div>
 
           {/* Navigation */}
@@ -106,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     >
-                      <span className="mr-3 text-base">{item.icon}</span>
+                      <span className={`mr-3 text-[10px] font-black w-8 text-center py-0.5 rounded ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{item.icon}</span>
                       {item.label}
                       {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />}
                     </Link>
@@ -140,8 +140,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0">
-        <div className="p-6">{children}</div>
+      <main className="lg:pl-60 pt-14 lg:pt-0">
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
 
       {/* Mobile overlay */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { AuthUser } from '@/lib/api';
@@ -8,144 +8,143 @@ import { AuthUser } from '@/lib/api';
 const formatINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function AdminDashboard({ user }: { user: AuthUser | null }) {
-  const { products, sales, employees, repairs } = useStore();
+  const { products, sales, employees, repairs, purchases, stockMovements, isDbConnected, refreshFromDb } = useStore();
 
-  // Metrics
-  const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0);
-  const totalItemsSold = sales.reduce((sum, s) => sum + s.itemsCount, 0);
+  // Auto-refresh every 30 seconds to reflect real changes made by any user/device
+  const refreshRef = useRef(refreshFromDb);
+  refreshRef.current = refreshFromDb;
+  useEffect(() => {
+    const interval = setInterval(() => refreshRef.current(), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Inventory value & low stock
+  // === LIVE COMPUTED METRICS — derived entirely from reactive store state ===
+
   const activeProducts = products.filter(p => p.status === 'ACTIVE');
-  const inventoryValue = activeProducts.reduce((sum, p) => sum + p.stock * p.purchasePrice, 0);
-  const lowStockItems = activeProducts.filter(p => p.stock <= p.minStock);
+  const completedSales = sales.filter(s => s.status === 'COMPLETED' || s.status === 'PAID');
 
-  // Payroll calculations
-  const totalStaffPayroll = employees.filter(e => e.status === 'ACTIVE').reduce((sum, e) => {
+  // Revenue
+  const totalRevenue = completedSales.reduce((sum, s) => sum + s.total, 0);
+  const totalDiscount = completedSales.reduce((sum, s) => sum + (s.discount || 0), 0);
+  const avgOrderValue = completedSales.length > 0 ? totalRevenue / completedSales.length : 0;
+
+  // Inventory
+  const inventoryValue = activeProducts.reduce((sum, p) => sum + p.stock * p.purchasePrice, 0);
+  const inventorySRP = activeProducts.reduce((sum, p) => sum + p.stock * p.sellingPrice, 0);
+  const potentialProfit = inventorySRP - inventoryValue;
+  const lowStockItems = activeProducts.filter(p => p.stock <= p.minStock);
+  const outOfStockItems = activeProducts.filter(p => p.stock === 0);
+
+  // Payroll
+  const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
+  const totalStaffPayroll = activeEmployees.reduce((sum, e) => {
     const commission = (e.commissionRate / 100) * e.totalSalesMonth;
     return sum + e.baseSalary + commission;
   }, 0);
-  const presentStaff = employees.filter(e => e.todayAttendance === 'PRESENT').length;
+  const presentStaff = activeEmployees.filter(e => e.todayAttendance === 'PRESENT').length;
+  const totalCommission = activeEmployees.reduce((sum, e) => sum + (e.commissionRate / 100) * e.totalSalesMonth, 0);
 
-  // Active repairs
+  // Profit
+  const totalPurchaseCost = purchases.reduce((sum, p) => sum + p.total, 0);
+  const grossProfit = totalRevenue - totalPurchaseCost;
+  const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
+
+  // Repairs
   const pendingRepairs = repairs.filter(r => r.status !== 'DELIVERED').length;
+  const readyRepairs = repairs.filter(r => r.status === 'READY').length;
+
+  // Today's activity (using stock movements as proxy for today)
+  const todaySales = completedSales.slice(0, 10);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-purple-900 to-indigo-900 rounded-2xl p-6 text-white shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-800 to-blue-900 rounded-2xl p-5 text-white shadow-md">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-200 text-xs font-semibold uppercase tracking-wider mb-2 border border-purple-400/20">
-            👑 Store Owner & Administrator
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-blue-200 text-xs font-semibold uppercase tracking-wider mb-2 border border-white/10">
+            Administrator — Full Access
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {user?.name || 'Sujal Kumar'}</h1>
-          <p className="text-purple-200 text-sm mt-1">Gupta Mobile Centre · Head Office, Gurgaon · Complete Business Overview</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Welcome back, {user?.name || 'Admin'}</h1>
+          <p className="text-blue-200 text-sm mt-0.5">Gupta Mobile Centre · Head Office, Gurgaon</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/products" className="px-4 py-2 bg-white text-purple-900 rounded-xl text-sm font-semibold hover:bg-purple-50 transition shadow">
-            + Add Product
+        <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${isDbConnected ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-amber-500/20 text-amber-300 border-amber-400/30'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isDbConnected ? 'bg-green-400' : 'bg-amber-400'}`} />
+            {isDbConnected ? 'Live' : 'Offline'}
+          </div>
+          <Link href="/dashboard/sales" className="px-4 py-2 bg-white text-slate-900 rounded-xl text-sm font-semibold hover:bg-blue-50 transition shadow">
+            Open POS
           </Link>
-          <Link href="/dashboard/sales" className="px-4 py-2 bg-purple-500/40 text-white border border-purple-300/30 rounded-xl text-sm font-semibold hover:bg-purple-500/60 transition">
-            🛒 Open POS
+          <Link href="/dashboard/products" className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-xl text-sm font-semibold hover:bg-white/20 transition">
+            Add Product
           </Link>
         </div>
       </div>
 
-      {/* Top 4 Financial & Operational KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Sales</span>
-            <span className="p-2 rounded-lg bg-green-50 text-green-700 text-lg">💰</span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{formatINR(totalRevenue)}</div>
-          <div className="text-xs text-gray-500 mt-1">{sales.length} completed transactions</div>
+      {/* Top KPI Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Revenue</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(totalRevenue)}</p>
+          <p className="text-xs text-gray-400 mt-1">{completedSales.length} sales · Avg {formatINR(Math.round(avgOrderValue))}</p>
         </div>
-
-        <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory Asset Value</span>
-            <span className="p-2 rounded-lg bg-blue-50 text-blue-700 text-lg">📦</span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{formatINR(inventoryValue)}</div>
-          <div className="text-xs text-gray-500 mt-1">{activeProducts.length} active catalog SKUs</div>
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Gross Profit</p>
+          <p className={`text-2xl font-bold mt-1 ${grossProfit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatINR(grossProfit)}</p>
+          <p className="text-xs text-gray-400 mt-1">Margin: {profitMargin}% · Discount given: {formatINR(totalDiscount)}</p>
         </div>
-
-        <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff & Payroll</span>
-            <span className="p-2 rounded-lg bg-purple-50 text-purple-700 text-lg">👥</span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">{formatINR(totalStaffPayroll)}</div>
-          <div className="text-xs text-green-600 mt-1 font-medium">{presentStaff}/{employees.length} employees on duty today</div>
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory Value</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(inventoryValue)}</p>
+          <p className="text-xs text-gray-400 mt-1">{activeProducts.length} SKUs · Potential upside {formatINR(potentialProfit)}</p>
         </div>
-
-        <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Repairs</span>
-            <span className="p-2 rounded-lg bg-orange-50 text-orange-700 text-lg">🔧</span>
-          </div>
-          <div className="text-2xl font-bold text-orange-600 mt-2">{pendingRepairs} Devices</div>
-          <div className="text-xs text-gray-500 mt-1">In diagnostics / service center</div>
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Monthly Payroll</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{formatINR(totalStaffPayroll)}</p>
+          <p className="text-xs text-gray-400 mt-1">{presentStaff}/{activeEmployees.length} on duty · Commission {formatINR(Math.round(totalCommission))}</p>
         </div>
       </div>
 
-      {/* Quick Navigation Cards */}
-      <div>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Owner Control Shortcuts</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link href="/dashboard/sales" className="bg-green-600 hover:bg-green-700 text-white rounded-xl p-4 transition shadow-sm text-center">
-            <div className="text-2xl mb-1">🛒</div>
-            <div className="font-semibold text-sm">POS Terminal</div>
-            <div className="text-xs text-green-100">Sell phones & accessories</div>
-          </Link>
-          <Link href="/dashboard/products" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl p-4 transition shadow-sm text-center">
-            <div className="text-2xl mb-1">📦</div>
-            <div className="font-semibold text-sm">Manage Products</div>
-            <div className="text-xs text-blue-100">Stock, cost & selling price</div>
-          </Link>
-          <Link href="/dashboard/employees" className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl p-4 transition shadow-sm text-center">
-            <div className="text-2xl mb-1">👤</div>
-            <div className="font-semibold text-sm">Payroll & Attendance</div>
-            <div className="text-xs text-purple-100">Salaries & staff commissions</div>
-          </Link>
-          <Link href="/dashboard/reports" className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl p-4 transition shadow-sm text-center">
-            <div className="text-2xl mb-1">📈</div>
-            <div className="font-semibold text-sm">P&L Reports</div>
-            <div className="text-xs text-amber-100">Profit, margin & taxes</div>
-          </Link>
-        </div>
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Active Products', value: activeProducts.length, sub: `${outOfStockItems.length} out of stock`, alert: outOfStockItems.length > 0 },
+          { label: 'Low Stock Alerts', value: lowStockItems.length, sub: 'At or below reorder level', alert: lowStockItems.length > 0 },
+          { label: 'Active Repairs', value: pendingRepairs, sub: `${readyRepairs} ready for pickup`, alert: readyRepairs > 0 },
+          { label: 'Purchase Orders', value: purchases.length, sub: `${purchases.filter(p => p.status === 'ORDERED').length} pending receipt`, alert: false },
+        ].map(kpi => (
+          <div key={kpi.label} className={`rounded-xl p-4 border shadow-sm ${kpi.alert ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{kpi.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${kpi.alert ? 'text-red-600' : 'text-gray-900'}`}>{kpi.value}</p>
+            <p className="text-xs text-gray-400 mt-1">{kpi.sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Two Column Layout: Recent Sales & Low Stock Warnings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Store Sales */}
+      {/* Main content: Recent Sales + Low Stock */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Recent Sales */}
         <div className="bg-white rounded-xl border shadow-sm">
-          <div className="px-5 py-4 border-b flex items-center justify-between">
+          <div className="px-5 py-3.5 border-b flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-gray-900">Recent Customer Sales</h2>
-              <p className="text-xs text-gray-500">Real-time point of sale transactions</p>
+              <h2 className="font-semibold text-gray-900 text-sm">Recent Sales</h2>
+              <p className="text-xs text-gray-500">Latest POS transactions</p>
             </div>
-            <Link href="/dashboard/sales" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-              View All POS →
-            </Link>
+            <Link href="/dashboard/sales" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View All</Link>
           </div>
-          {sales.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
-              No sales recorded yet. Click POS to make your first sale!
-            </div>
+          {completedSales.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">No sales yet. Open POS to record first sale.</div>
           ) : (
             <div className="divide-y">
-              {sales.slice(0, 5).map(s => (
-                <div key={s.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition">
+              {todaySales.slice(0, 6).map(s => (
+                <div key={s.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition">
                   <div>
-                    <div className="font-medium text-gray-900 text-sm">{s.customerName}</div>
-                    <div className="text-xs text-gray-500">{s.invoiceNumber} · {s.date} · By {s.staffName}</div>
+                    <p className="font-medium text-gray-900 text-sm">{s.customerName}</p>
+                    <p className="text-xs text-gray-400">{s.invoiceNumber} · {s.staffName}</p>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-gray-900 text-sm">{formatINR(s.total)}</div>
-                    <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-green-100 text-green-700">
-                      {s.paymentMethod}
-                    </span>
+                    <p className="font-bold text-gray-900 text-sm">{formatINR(s.total)}</p>
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">{s.paymentMethod}</span>
                   </div>
                 </div>
               ))}
@@ -153,45 +152,114 @@ export default function AdminDashboard({ user }: { user: AuthUser | null }) {
           )}
         </div>
 
-        {/* Low Stock Warning Box */}
+        {/* Low Stock Alerts */}
         <div className="bg-white rounded-xl border shadow-sm">
-          <div className="px-5 py-4 border-b flex items-center justify-between">
+          <div className="px-5 py-3.5 border-b flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <span>⚠️ Low Stock & Reorder Alerts</span>
+              <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                Low Stock Alerts
                 {lowStockItems.length > 0 && (
-                  <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">
-                    {lowStockItems.length}
-                  </span>
+                  <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{lowStockItems.length}</span>
                 )}
               </h2>
               <p className="text-xs text-gray-500">Products near or below safety threshold</p>
             </div>
-            <Link href="/dashboard/inventory" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-              Manage Inventory →
-            </Link>
+            <Link href="/dashboard/inventory" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Manage</Link>
           </div>
           {lowStockItems.length === 0 ? (
-            <div className="p-8 text-center text-green-600 text-sm">
-              ✓ All products have healthy stock levels!
-            </div>
+            <div className="p-8 text-center text-green-600 text-sm font-medium">All products have healthy stock levels</div>
           ) : (
             <div className="divide-y">
-              {lowStockItems.map(p => (
-                <div key={p.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition">
-                  <div>
-                    <div className="font-medium text-gray-900 text-sm">{p.name}</div>
-                    <div className="text-xs text-gray-500">{p.brand} · SKU: {p.sku}</div>
+              {lowStockItems.slice(0, 6).map(p => (
+                <div key={p.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition">
+                  <div className="min-w-0 flex-1 mr-4">
+                    <p className="font-medium text-gray-900 text-sm truncate">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.brand} · {p.sku}</p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-red-600">{p.stock} units left</div>
-                    <div className="text-xs text-gray-400">Min safety: {p.minStock}</div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={`text-sm font-bold ${p.stock === 0 ? 'text-red-600' : 'text-orange-500'}`}>{p.stock} left</p>
+                    <p className="text-xs text-gray-400">Min: {p.minStock}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+      </div>
+
+      {/* Employee Performance */}
+      <div className="bg-white rounded-xl border shadow-sm">
+        <div className="px-5 py-3.5 border-b flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 text-sm">Staff Performance & Payroll</h2>
+            <p className="text-xs text-gray-500">Live salary and commission breakdown</p>
+          </div>
+          <Link href="/dashboard/employees" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Manage Staff</Link>
+        </div>
+        {activeEmployees.length === 0 ? (
+          <div className="p-6 text-center text-gray-400 text-sm">No active employees.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">Employee</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Role</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Attendance</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Sales This Month</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Commission</th>
+                  <th className="text-right px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">Net Pay</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {activeEmployees.map(emp => {
+                  const commission = Math.round((emp.commissionRate / 100) * emp.totalSalesMonth);
+                  const netPay = emp.baseSalary + commission;
+                  return (
+                    <tr key={emp.id} className="hover:bg-gray-50">
+                      <td className="px-5 py-3">
+                        <p className="font-medium text-gray-900">{emp.name}</p>
+                        <p className="text-xs text-gray-400">{emp.phone}</p>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{emp.role}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.todayAttendance === 'PRESENT' ? 'bg-green-100 text-green-700' : emp.todayAttendance === 'ABSENT' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                          {emp.todayAttendance || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatINR(emp.totalSalesMonth)}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-medium">{formatINR(commission)}</td>
+                      <td className="px-5 py-3 text-right font-bold text-blue-700">{formatINR(netPay)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t-2">
+                <tr>
+                  <td colSpan={5} className="px-5 py-3 text-sm font-bold text-gray-700">Total Monthly Payroll Liability</td>
+                  <td className="px-5 py-3 text-right font-black text-gray-900 text-base">{formatINR(totalStaffPayroll)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { href: '/dashboard/sales', label: 'Open POS', sub: 'Record a sale', color: 'bg-green-600 hover:bg-green-700' },
+          { href: '/dashboard/products', label: 'Add Product', sub: 'Update catalog', color: 'bg-blue-600 hover:bg-blue-700' },
+          { href: '/dashboard/employees', label: 'Staff & Payroll', sub: 'Salaries & attendance', color: 'bg-purple-600 hover:bg-purple-700' },
+          { href: '/dashboard/reports', label: 'P&L Reports', sub: 'Profit & margins', color: 'bg-amber-600 hover:bg-amber-700' },
+        ].map(a => (
+          <Link key={a.href} href={a.href} className={`${a.color} text-white rounded-xl p-4 transition shadow-sm`}>
+            <p className="font-bold text-sm">{a.label}</p>
+            <p className="text-xs text-white/70 mt-0.5">{a.sub}</p>
+          </Link>
+        ))}
       </div>
     </div>
   );

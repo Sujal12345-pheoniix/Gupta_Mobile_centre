@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api, AuthUser } from './api';
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Priority 1: Check live backend session with JWT
+        // Priority 1: Check live backend session with JWT (5s max — getMe has its own timeout)
         if (api.isAuthenticated()) {
           const response = await api.getMe();
           if (response.success && response.data) {
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Priority 2: Stored user fallback
+        // Priority 2: Stored user fallback (always instant)
         if (typeof window !== 'undefined') {
           const storedUser = localStorage.getItem('demo_user');
           if (storedUser) {
@@ -109,12 +109,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    checkAuth();
+    // Hard ceiling: show login within 6s regardless of backend state
+    const maxWait = setTimeout(() => setIsLoading(false), 6000);
+    checkAuth().finally(() => clearTimeout(maxWait));
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      // 1. Try real API with Neon DB first
+      // 1. Try real API (8s timeout via AbortController in api.ts)
       const response = await api.login({ email, password });
       if (response.success && response.data) {
         if (typeof window !== 'undefined') {
@@ -123,11 +125,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.data.user);
         return { success: true };
       }
+
+      // If backend returned explicit 401 Unauthorized, don't try offline fallback
+      if (response.error?.code === '401') {
+        return { success: false, error: 'Invalid email or password' };
+      }
     } catch (err) {
       console.warn('API login request error:', err);
     }
 
-    // 2. Fallback if network issue
+    // 2. Offline fallback (timeout / network error) — immediate
     if (email) {
       const fallbackUser = DEMO_USERS[email.toLowerCase()];
       if (fallbackUser) {
