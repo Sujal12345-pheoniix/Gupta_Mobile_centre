@@ -73,6 +73,13 @@ enum QuotationStatus {
   EXPIRED
   REJECTED
 }
+enum RepairStatus {
+  DIAGNOSING
+  WAITING_PARTS
+  IN_REPAIR
+  READY
+  DELIVERED
+}
 enum ExpenseStatus {
   DRAFT
   SUBMITTED
@@ -149,6 +156,7 @@ model Organization {
   suppliers  Supplier[]
   customers  Customer[]
   employees  Employee[]
+  repairJobs RepairJob[]
 }
 
 model Branch {
@@ -168,6 +176,7 @@ model Branch {
   expenses      Expense[]
   shifts        Shift[]
   employees     Employee[]
+  repairJobs    RepairJob[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -606,3 +615,30 @@ model OutboxEvent {
   createdAt   DateTime @default(now())
   @@index([processedAt, createdAt])
 }
+
+model RepairJob {
+  id             String       @id @default(cuid())
+  organizationId String
+  branchId       String
+  ticketNumber   String       @unique
+  customerName   String
+  customerPhone  String
+  deviceModel    String
+  imei           String?
+  issue          String
+  estimatedCost  Decimal      @db.Decimal(12, 2) @default(0)
+  advancePaid    Decimal      @db.Decimal(12, 2) @default(0)
+  status         RepairStatus @default(DIAGNOSING)
+  technicianName String       @default("Amit Verma")
+  partsUsed      String?
+  deliveredAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  branch         Branch       @relation(fields: [branchId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([branchId, status])
+}
+

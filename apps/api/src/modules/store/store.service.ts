@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
-import { Prisma, ProductStatus, TrackingMode, StockMovementType, SaleStatus, PaymentMethod, AttendanceStatus, EmployeeStatus, PurchaseStatus } from '@prisma/client';
+import { Prisma, ProductStatus, TrackingMode, StockMovementType, SaleStatus, PaymentMethod, AttendanceStatus, EmployeeStatus, PurchaseStatus, RepairStatus } from '@prisma/client';
 
 @Injectable()
 export class StoreService {
@@ -250,6 +250,97 @@ export class StoreService {
       itemsCount: p.items.reduce((sum, i) => sum + Number(i.quantity), 0),
     }));
 
+    // 7. Fetch Repair Jobs from Neon PostgreSQL
+    let repairsDb = await this.prisma.repairJob.findMany({
+      where: { branchId: branch.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (repairsDb.length === 0) {
+      const initialRepairs = [
+        {
+          ticketNumber: 'GMC-REP-101',
+          customerName: 'Rahul Sharma',
+          customerPhone: '9876501234',
+          deviceModel: 'iPhone 13',
+          issue: 'Shattered OLED Screen Replacement',
+          estimatedCost: new Prisma.Decimal(7500),
+          advancePaid: new Prisma.Decimal(2000),
+          status: RepairStatus.READY,
+          technicianName: 'Amit Verma',
+          partsUsed: 'Original iPhone 13 OLED Display',
+        },
+        {
+          ticketNumber: 'GMC-REP-102',
+          customerName: 'Sunita Devi',
+          customerPhone: '9822114433',
+          deviceModel: 'Samsung Galaxy A54',
+          issue: 'Battery drains within 2 hours',
+          estimatedCost: new Prisma.Decimal(2200),
+          advancePaid: new Prisma.Decimal(500),
+          status: RepairStatus.IN_REPAIR,
+          technicianName: 'Amit Verma',
+          partsUsed: 'Samsung A54 5000mAh Battery',
+        },
+        {
+          ticketNumber: 'GMC-REP-103',
+          customerName: 'Deepak Kumar',
+          customerPhone: '9811447722',
+          deviceModel: 'OnePlus Nord CE3',
+          issue: 'Loose charging port / No fast charge',
+          estimatedCost: new Prisma.Decimal(1200),
+          advancePaid: new Prisma.Decimal(0),
+          status: RepairStatus.WAITING_PARTS,
+          technicianName: 'Amit Verma',
+          partsUsed: 'OnePlus Sub-board Port',
+        },
+        {
+          ticketNumber: 'GMC-REP-104',
+          customerName: 'Ankit Verma',
+          customerPhone: '9877112233',
+          deviceModel: 'Vivo V29',
+          issue: 'Water damage, camera lens foggy',
+          estimatedCost: new Prisma.Decimal(3500),
+          advancePaid: new Prisma.Decimal(1000),
+          status: RepairStatus.DIAGNOSING,
+          technicianName: 'Amit Verma',
+          partsUsed: null,
+        },
+      ];
+
+      for (const r of initialRepairs) {
+        await this.prisma.repairJob.create({
+          data: {
+            organizationId: org.id,
+            branchId: branch.id,
+            ...r,
+          },
+        });
+      }
+
+      repairsDb = await this.prisma.repairJob.findMany({
+        where: { branchId: branch.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    const repairs = repairsDb.map((rj) => ({
+      id: rj.id,
+      ticketNumber: rj.ticketNumber,
+      customerName: rj.customerName,
+      customerPhone: rj.customerPhone,
+      deviceModel: rj.deviceModel,
+      imei: rj.imei || undefined,
+      issue: rj.issue,
+      estimatedCost: Number(rj.estimatedCost),
+      advancePaid: Number(rj.advancePaid),
+      status: rj.status,
+      technicianName: rj.technicianName,
+      partsUsed: rj.partsUsed || undefined,
+      deliveredAt: rj.deliveredAt ? rj.deliveredAt.toLocaleString('en-IN') : undefined,
+      createdAt: rj.createdAt.toLocaleString('en-IN'),
+    }));
+
     const settings = await this.getSettings();
 
     return {
@@ -260,6 +351,7 @@ export class StoreService {
       sales,
       suppliers,
       purchases,
+      repairs,
       settings,
     };
   }
@@ -990,5 +1082,126 @@ export class StoreService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * CREATE REPAIR JOB in Neon PostgreSQL
+   */
+  async createRepairJob(dto: {
+    customerName: string;
+    customerPhone: string;
+    deviceModel: string;
+    imei?: string;
+    issue: string;
+    estimatedCost?: number;
+    advancePaid?: number;
+    status?: string;
+    technicianName?: string;
+    partsUsed?: string;
+  }) {
+    const { org, branch } = await this.getOrCreateOrgAndBranch();
+    const count = await this.prisma.repairJob.count({ where: { branchId: branch.id } });
+    const ticketNumber = `GMC-REP-${101 + count}`;
+
+    const validStatus = (dto.status as RepairStatus) || RepairStatus.DIAGNOSING;
+
+    const job = await this.prisma.repairJob.create({
+      data: {
+        organizationId: org.id,
+        branchId: branch.id,
+        ticketNumber,
+        customerName: dto.customerName,
+        customerPhone: dto.customerPhone,
+        deviceModel: dto.deviceModel,
+        imei: dto.imei || null,
+        issue: dto.issue,
+        estimatedCost: new Prisma.Decimal(dto.estimatedCost || 0),
+        advancePaid: new Prisma.Decimal(dto.advancePaid || 0),
+        status: validStatus,
+        technicianName: dto.technicianName || 'Amit Verma',
+        partsUsed: dto.partsUsed || null,
+        deliveredAt: validStatus === RepairStatus.DELIVERED ? new Date() : null,
+      },
+    });
+
+    this.logger.log(`✓ Repair job ${job.ticketNumber} created in PostgreSQL`);
+
+    return {
+      id: job.id,
+      ticketNumber: job.ticketNumber,
+      customerName: job.customerName,
+      customerPhone: job.customerPhone,
+      deviceModel: job.deviceModel,
+      imei: job.imei || undefined,
+      issue: job.issue,
+      estimatedCost: Number(job.estimatedCost),
+      advancePaid: Number(job.advancePaid),
+      status: job.status,
+      technicianName: job.technicianName,
+      partsUsed: job.partsUsed || undefined,
+      deliveredAt: job.deliveredAt ? job.deliveredAt.toLocaleString('en-IN') : undefined,
+      createdAt: job.createdAt.toLocaleString('en-IN'),
+    };
+  }
+
+  /**
+   * UPDATE REPAIR JOB in Neon PostgreSQL
+   */
+  async updateRepairJob(id: string, dto: {
+    status?: string;
+    notes?: string;
+    partsUsed?: string;
+    technicianName?: string;
+    estimatedCost?: number;
+    advancePaid?: number;
+  }) {
+    const existing = await this.prisma.repairJob.findFirst({
+      where: { OR: [{ id }, { ticketNumber: id }] },
+    });
+
+    if (!existing) {
+      throw new Error(`Repair job ${id} not found`);
+    }
+
+    let newPartsUsed = existing.partsUsed;
+    if (dto.partsUsed) {
+      newPartsUsed = existing.partsUsed ? `${existing.partsUsed}; ${dto.partsUsed}` : dto.partsUsed;
+    } else if (dto.notes) {
+      newPartsUsed = existing.partsUsed ? `${existing.partsUsed}; ${dto.notes}` : dto.notes;
+    }
+
+    const newStatus = (dto.status as RepairStatus) || existing.status;
+    const deliveredAt = newStatus === RepairStatus.DELIVERED ? (existing.deliveredAt || new Date()) : existing.deliveredAt;
+
+    const updated = await this.prisma.repairJob.update({
+      where: { id: existing.id },
+      data: {
+        status: newStatus,
+        partsUsed: newPartsUsed,
+        deliveredAt,
+        technicianName: dto.technicianName !== undefined ? dto.technicianName : existing.technicianName,
+        estimatedCost: dto.estimatedCost !== undefined ? new Prisma.Decimal(dto.estimatedCost) : existing.estimatedCost,
+        advancePaid: dto.advancePaid !== undefined ? new Prisma.Decimal(dto.advancePaid) : existing.advancePaid,
+      },
+    });
+
+    this.logger.log(`✓ Repair job ${updated.ticketNumber} updated to ${updated.status} in PostgreSQL`);
+
+    return {
+      id: updated.id,
+      ticketNumber: updated.ticketNumber,
+      customerName: updated.customerName,
+      customerPhone: updated.customerPhone,
+      deviceModel: updated.deviceModel,
+      imei: updated.imei || undefined,
+      issue: updated.issue,
+      estimatedCost: Number(updated.estimatedCost),
+      advancePaid: Number(updated.advancePaid),
+      status: updated.status,
+      technicianName: updated.technicianName,
+      partsUsed: updated.partsUsed || undefined,
+      deliveredAt: updated.deliveredAt ? updated.deliveredAt.toLocaleString('en-IN') : undefined,
+      createdAt: updated.createdAt.toLocaleString('en-IN'),
+    };
   }
 }

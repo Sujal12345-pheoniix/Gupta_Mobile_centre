@@ -179,6 +179,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (res.data.sales && res.data.sales.length > 0) {
           setSales(res.data.sales);
         }
+        if (res.data.repairs && res.data.repairs.length > 0) {
+          setRepairs(res.data.repairs);
+        }
         // Purchases and Suppliers always override local state (DB is source of truth)
         if (res.data.suppliers) {
           setSuppliers(res.data.suppliers);
@@ -215,6 +218,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Fetch live data from PostgreSQL
       refreshFromDb();
     }
+  }, []);
+
+  // Multi-device real-time sync: poll database every 8 seconds so all devices (mobile, laptop, staff, technician) see identical data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshFromDb();
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   // Save to localStorage as resilient offline cache
@@ -569,7 +580,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Repairs
+  // Repairs (Persisted to Neon PostgreSQL for multi-device cross-role sync)
   const addRepairJob = (jobData: Omit<RepairJob, 'id' | 'ticketNumber' | 'createdAt'>): RepairJob => {
     const ticketNumber = `GMC-REP-${100 + repairs.length + 1}`;
     const newJob: RepairJob = {
@@ -579,6 +590,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toLocaleString('en-IN')
     };
     setRepairs(prev => [newJob, ...prev]);
+
+    // Asynchronously persist to Neon PostgreSQL
+    api.createRepairJob(jobData).then((res) => {
+      if (res.success && res.data) {
+        setIsDbConnected(true);
+        setRepairs(prev => prev.map(r => r.id === newJob.id ? res.data : r));
+        refreshFromDb();
+      }
+    }).catch(err => {
+      console.warn('Failed to save repair job to PostgreSQL:', err);
+    });
+
     return newJob;
   };
 
@@ -594,6 +617,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       return r;
     }));
+
+    // Asynchronously persist status change to Neon PostgreSQL
+    api.updateRepairJob(id, { status, notes }).then((res) => {
+      if (res.success) {
+        setIsDbConnected(true);
+        refreshFromDb();
+      }
+    }).catch(err => {
+      console.warn('Failed to update repair job status in PostgreSQL:', err);
+    });
   };
 
   const resetToDefaultData = () => {

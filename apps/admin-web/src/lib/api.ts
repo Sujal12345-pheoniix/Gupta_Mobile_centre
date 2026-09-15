@@ -267,6 +267,14 @@ class ApiClient {
   async updateRole(id: string, dto: any): Promise<ApiResponse<any>> {
     return this.request<any>('PATCH', `/store/roles/${id}`, dto, { authenticated: false });
   }
+
+  async createRepairJob(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('POST', '/store/repairs', dto, { authenticated: false });
+  }
+
+  async updateRepairJob(id: string, dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/repairs/${id}`, dto, { authenticated: false });
+  }
 }
 
 export const api = new ApiClient();

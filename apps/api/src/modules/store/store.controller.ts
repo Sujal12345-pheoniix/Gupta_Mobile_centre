@@ -53,6 +53,24 @@ export class StoreController {
   }
 
   /**
+   * POST /api/v1/store/repairs
+   */
+  @Post('repairs')
+  async createRepairJob(@Body() dto: any) {
+    const data = await this.storeService.createRepairJob(dto);
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /api/v1/store/repairs/:id
+   */
+  @Patch('repairs/:id')
+  async updateRepairJob(@Param('id') id: string, @Body() dto: any) {
+    const data = await this.storeService.updateRepairJob(id, dto);
+    return { success: true, data };
+  }
+
+  /**
    * POST /api/v1/store/products
    */
   @Post('products')
