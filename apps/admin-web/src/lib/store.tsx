@@ -87,50 +87,20 @@ export interface StoreSettings {
 
 const STORAGE_KEY = 'gupta_mobile_store_v2';
 
-// Clean initial data for Gupta Mobile Centre
-const DEFAULT_PRODUCTS: ProductItem[] = [
-  { id: 'p-1', name: 'Apple iPhone 15 (128GB - Black)', category: 'Smartphones', brand: 'Apple', sku: 'IPH15-128-BLK', barcode: '194253408215', purchasePrice: 62000, sellingPrice: 69900, mrp: 79900, stock: 8, minStock: 3, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
-  { id: 'p-2', name: 'Samsung Galaxy S24 (256GB - Onyx Black)', category: 'Smartphones', brand: 'Samsung', sku: 'SAM-S24-256', barcode: '880609501234', purchasePrice: 66000, sellingPrice: 74999, mrp: 84999, stock: 5, minStock: 2, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
-  { id: 'p-3', name: 'OnePlus 12R (16GB RAM / 256GB)', category: 'Smartphones', brand: 'OnePlus', sku: 'OP-12R-256', barcode: '692181562301', purchasePrice: 38000, sellingPrice: 42999, mrp: 45999, stock: 6, minStock: 2, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
-  { id: 'p-4', name: 'Redmi Note 13 Pro 5G (128GB)', category: 'Smartphones', brand: 'Generic', sku: 'RED-N13P-128', barcode: '890123456789', purchasePrice: 21000, sellingPrice: 24999, mrp: 27999, stock: 12, minStock: 4, taxRate: 18, trackingMode: 'SERIAL', status: 'ACTIVE' },
-  { id: 'p-5', name: 'Apple 20W USB-C Fast Power Adapter', category: 'Chargers', brand: 'Apple', sku: 'APP-20W-ADPT', barcode: '194252157008', purchasePrice: 1350, sellingPrice: 1900, mrp: 1900, stock: 18, minStock: 5, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' },
-  { id: 'p-6', name: 'Boat Airdopes 141 ANC TWS Earbuds', category: 'Accessories', brand: 'Boat', sku: 'BOAT-AD-141', barcode: '890760511223', purchasePrice: 1100, sellingPrice: 1699, mrp: 4490, stock: 24, minStock: 6, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' },
-  { id: 'p-7', name: '9D Curved Gorilla Tempered Glass (iPhone 15)', category: 'Screen Guards', brand: 'Generic', sku: 'TG-IPH15-9D', barcode: '890111222333', purchasePrice: 60, sellingPrice: 299, mrp: 999, stock: 45, minStock: 10, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' },
-  { id: 'p-8', name: 'Type-C to Type-C 65W Braided Fast Cable', category: 'Cables', brand: 'Generic', sku: 'CAB-CC-65W', barcode: '890444555666', purchasePrice: 90, sellingPrice: 350, mrp: 799, stock: 30, minStock: 8, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' },
-  { id: 'p-9', name: 'Original iPhone 13 OLED Display Assembly', category: 'Spare Parts', brand: 'Apple', sku: 'SP-IP13-DISP', barcode: '890777888999', purchasePrice: 4800, sellingPrice: 7500, mrp: 9500, stock: 4, minStock: 2, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' },
-  { id: 'p-10', name: 'Samsung Galaxy A54 Original 5000mAh Battery', category: 'Spare Parts', brand: 'Samsung', sku: 'SP-SAM-A54-BAT', barcode: '890999000111', purchasePrice: 1200, sellingPrice: 2200, mrp: 2800, stock: 6, minStock: 2, taxRate: 18, trackingMode: 'NONE', status: 'ACTIVE' }
-];
+// Clean initial data for Gupta Mobile Centre (No dummy data - PostgreSQL DB is single source of truth)
+const DEFAULT_PRODUCTS: ProductItem[] = [];
 
 const DEFAULT_EMPLOYEES: EmployeeRecord[] = [
-  { id: 'emp-1', code: 'EMP001', name: 'Sujal Kumar', role: 'Admin', phone: '9876543210', baseSalary: 65000, commissionRate: 2.0, totalSalesMonth: 124000, status: 'ACTIVE', todayAttendance: 'PRESENT' },
-  { id: 'emp-2', code: 'EMP002', name: 'Neha Rani', role: 'Manager', phone: '9833445566', baseSalary: 35000, commissionRate: 1.0, totalSalesMonth: 86000, status: 'ACTIVE', todayAttendance: 'PRESENT' },
-  { id: 'emp-3', code: 'EMP003', name: 'Rohan Sharma', role: 'Staff', phone: '9811223344', baseSalary: 22000, commissionRate: 1.5, totalSalesMonth: 142000, status: 'ACTIVE', todayAttendance: 'PRESENT' },
-  { id: 'emp-4', code: 'EMP004', name: 'Amit Verma', role: 'Technician', phone: '9822334455', baseSalary: 28000, commissionRate: 5.0, totalSalesMonth: 38000, status: 'ACTIVE', todayAttendance: 'PRESENT' }
+  { id: 'emp-1', code: 'EMP001', name: 'Sujal Kumar', role: 'Admin', phone: '9876543210', baseSalary: 65000, commissionRate: 2.0, totalSalesMonth: 0, status: 'ACTIVE', todayAttendance: 'PRESENT' },
+  { id: 'emp-2', code: 'EMP002', name: 'Neha Rani', role: 'Manager', phone: '9833445566', baseSalary: 35000, commissionRate: 1.0, totalSalesMonth: 0, status: 'ACTIVE', todayAttendance: 'PRESENT' },
+  { id: 'emp-3', code: 'EMP003', name: 'Rohan Sharma', role: 'Staff', phone: '9811223344', baseSalary: 22000, commissionRate: 1.5, totalSalesMonth: 0, status: 'ACTIVE', todayAttendance: 'PRESENT' },
+  { id: 'emp-4', code: 'EMP004', name: 'Amit Verma', role: 'Technician', phone: '9822334455', baseSalary: 28000, commissionRate: 5.0, totalSalesMonth: 0, status: 'ACTIVE', todayAttendance: 'PRESENT' }
 ];
 
-const DEFAULT_CUSTOMERS: CustomerRecord[] = [
-  { id: 'c-1', name: 'Rahul Sharma', phone: '9876501234', email: 'rahul.s@gmail.com', address: 'Sector 14, Gurgaon', totalPurchases: 72400, outstandingBalance: 0, lastVisit: '2026-09-08' },
-  { id: 'c-2', name: 'Priya Singh', phone: '9812345678', email: 'priya.singh@yahoo.com', address: 'DLF Phase 3, Gurgaon', totalPurchases: 3200, outstandingBalance: 450, lastVisit: '2026-09-09' },
-  { id: 'c-3', name: 'Vikram Malhotra', phone: '9899887766', email: 'vikram.m@gmail.com', address: 'Sohna Road, Gurgaon', totalPurchases: 44999, outstandingBalance: 0, lastVisit: '2026-09-10' }
-];
-
-const DEFAULT_REPAIRS: RepairJob[] = [
-  { id: 'rep-1', ticketNumber: 'GMC-REP-101', customerName: 'Rahul Sharma', customerPhone: '9876501234', deviceModel: 'iPhone 13', issue: 'Shattered OLED Screen Replacement', estimatedCost: 7500, advancePaid: 2000, status: 'READY', technicianName: 'Amit Verma', partsUsed: 'Original iPhone 13 OLED Display', createdAt: '2026-09-09 11:30 AM' },
-  { id: 'rep-2', ticketNumber: 'GMC-REP-102', customerName: 'Sunita Devi', customerPhone: '9822114433', deviceModel: 'Samsung Galaxy A54', issue: 'Battery drains within 2 hours', estimatedCost: 2200, advancePaid: 500, status: 'IN_REPAIR', technicianName: 'Amit Verma', partsUsed: 'Samsung A54 5000mAh Battery', createdAt: '2026-09-10 10:15 AM' },
-  { id: 'rep-3', ticketNumber: 'GMC-REP-103', customerName: 'Deepak Kumar', customerPhone: '9811447722', deviceModel: 'OnePlus Nord CE3', issue: 'Loose charging port / No fast charge', estimatedCost: 1200, advancePaid: 0, status: 'WAITING_PARTS', technicianName: 'Amit Verma', partsUsed: 'OnePlus Sub-board Port', createdAt: '2026-09-10 11:45 AM' },
-  { id: 'rep-4', ticketNumber: 'GMC-REP-104', customerName: 'Ankit Verma', customerPhone: '9877112233', deviceModel: 'Vivo V29', issue: 'Water damage, camera lens foggy', estimatedCost: 3500, advancePaid: 1000, status: 'DIAGNOSING', technicianName: 'Amit Verma', createdAt: '2026-09-10 01:20 PM' }
-];
-
-const DEFAULT_SALES: SaleRecord[] = [
-  { id: 's-1', invoiceNumber: 'GMC-1001', date: '2026-09-09 02:45 PM', customerName: 'Vikram Malhotra', customerPhone: '9899887766', itemsCount: 2, subtotal: 44999, discount: 500, tax: 6864, total: 44499, paidAmount: 44499, paymentMethod: 'UPI', status: 'COMPLETED', staffName: 'Rohan Sharma' },
-  { id: 's-2', invoiceNumber: 'GMC-1002', date: '2026-09-10 11:15 AM', customerName: 'Priya Singh', customerPhone: '9812345678', itemsCount: 3, subtotal: 3950, discount: 150, tax: 602, total: 3800, paidAmount: 3350, paymentMethod: 'CASH', status: 'PAID', staffName: 'Rohan Sharma' }
-];
-
-const DEFAULT_MOVEMENTS: StockMovementItem[] = [
-  { id: 'sm-1', date: '2026-09-09 02:45 PM', sku: 'OP-12R-256', productName: 'OnePlus 12R (16GB RAM / 256GB)', type: 'SALE', quantity: -1, reason: 'Invoice GMC-1001', actor: 'Rohan Sharma' },
-  { id: 'sm-2', date: '2026-09-10 11:15 AM', sku: 'APP-20W-ADPT', productName: 'Apple 20W USB-C Fast Power Adapter', type: 'SALE', quantity: -1, reason: 'Invoice GMC-1002', actor: 'Rohan Sharma' },
-  { id: 'sm-3', date: '2026-09-10 11:15 AM', sku: 'CAB-CC-65W', productName: 'Type-C to Type-C 65W Braided Fast Cable', type: 'SALE', quantity: -2, reason: 'Invoice GMC-1002', actor: 'Rohan Sharma' }
-];
+const DEFAULT_CUSTOMERS: CustomerRecord[] = [];
+const DEFAULT_REPAIRS: RepairJob[] = [];
+const DEFAULT_SALES: SaleRecord[] = [];
+const DEFAULT_MOVEMENTS: StockMovementItem[] = [];
 
 const DEFAULT_SETTINGS: StoreSettings = {
   name: 'Gupta Mobile Centre',
@@ -164,29 +134,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await api.getStoreData();
       if (res.success && res.data) {
         setIsDbConnected(true);
-        if (res.data.products && res.data.products.length > 0) {
+        if (Array.isArray(res.data.products)) {
           setProducts(res.data.products);
         }
-        if (res.data.customers && res.data.customers.length > 0) {
+        if (Array.isArray(res.data.customers)) {
           setCustomers(res.data.customers);
         }
-        if (res.data.employees && res.data.employees.length > 0) {
+        if (Array.isArray(res.data.employees)) {
           setEmployees(res.data.employees);
         }
-        if (res.data.stockMovements && res.data.stockMovements.length > 0) {
+        if (Array.isArray(res.data.stockMovements)) {
           setStockMovements(res.data.stockMovements);
         }
-        if (res.data.sales && res.data.sales.length > 0) {
+        if (Array.isArray(res.data.sales)) {
           setSales(res.data.sales);
         }
-        if (res.data.repairs && res.data.repairs.length > 0) {
+        if (Array.isArray(res.data.repairs)) {
           setRepairs(res.data.repairs);
         }
-        // Purchases and Suppliers always override local state (DB is source of truth)
-        if (res.data.suppliers) {
+        if (Array.isArray(res.data.suppliers)) {
           setSuppliers(res.data.suppliers);
         }
-        if (res.data.purchases) {
+        if (Array.isArray(res.data.purchases)) {
           setPurchases(res.data.purchases);
         }
         if (res.data.settings) {
@@ -204,18 +173,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const data = JSON.parse(saved);
+        // Filter out any stale dummy sales (GMC-1001, GMC-1002) and legacy dummy repairs
+        const cleanSales = (data.sales || []).filter(
+          (s: any) => s.id !== 's-1' && s.id !== 's-2' && s.invoiceNumber !== 'GMC-1001' && s.invoiceNumber !== 'GMC-1002'
+        );
+        const cleanRepairs = (data.repairs || []).filter(
+          (r: any) => !r.ticketNumber?.startsWith('GMC-REP-10')
+        );
+        const cleanMovements = (data.stockMovements || []).filter(
+          (m: any) => !m.reason?.includes('GMC-1001') && !m.reason?.includes('GMC-1002')
+        );
+
         if (data.products?.length) setProducts(data.products);
-        if (data.stockMovements?.length) setStockMovements(data.stockMovements);
+        setStockMovements(cleanMovements);
         if (data.customers?.length) setCustomers(data.customers);
         if (data.employees?.length) setEmployees(data.employees);
-        if (data.sales?.length) setSales(data.sales);
-        if (data.repairs?.length) setRepairs(data.repairs);
+        setSales(cleanSales);
+        setRepairs(cleanRepairs);
       }
     } catch (e) {
       console.error('Failed to load store data from localStorage', e);
     } finally {
       setIsLoaded(true);
-      // Fetch live data from PostgreSQL
+      // Fetch live data from PostgreSQL immediately
       refreshFromDb();
     }
   }, []);
@@ -630,15 +610,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const resetToDefaultData = () => {
-    setProducts(DEFAULT_PRODUCTS);
-    setStockMovements(DEFAULT_MOVEMENTS);
-    setCustomers(DEFAULT_CUSTOMERS);
+    setProducts([]);
+    setStockMovements([]);
+    setCustomers([]);
     setEmployees(DEFAULT_EMPLOYEES);
-    setSales(DEFAULT_SALES);
-    setRepairs(DEFAULT_REPAIRS);
+    setSales([]);
+    setRepairs([]);
     setPurchases([]);
     setSuppliers([]);
-    localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    refreshFromDb();
   };
 
   // Purchases & Suppliers (saving to Neon PostgreSQL)

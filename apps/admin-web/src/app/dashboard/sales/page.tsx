@@ -229,36 +229,45 @@ export default function SalesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map(s => (
-                <tr key={s.id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => setSelectedSale(s)}>
-                  <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{s.invoiceNumber}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{s.customerName}</div>
-                    <div className="text-xs text-gray-400">{s.customerPhone}</div>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 9 : 8} className="px-4 py-12 text-center text-gray-400">
+                    <div className="font-medium text-gray-500 mb-1">No sales records found</div>
+                    <div className="text-xs text-gray-400">Sales created via POS or synced from PostgreSQL will appear here.</div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{s.date}</td>
-                  <td className="px-4 py-3 text-center text-gray-700">{s.itemsCount}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatINR(s.total)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.paymentMethod === 'CASH' ? 'bg-green-50 text-green-700' : s.paymentMethod === 'UPI' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{s.paymentMethod}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{s.staffName}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">{s.status}</span>
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={e => handleDelete(s, e)}
-                        className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
-                        title="Delete sale and return items to inventory"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  )}
                 </tr>
-              ))}
+              ) : (
+                filtered.map(s => (
+                  <tr key={s.id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => setSelectedSale(s)}>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-blue-700">{s.invoiceNumber}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{s.customerName}</div>
+                      <div className="text-xs text-gray-400">{s.customerPhone}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{s.date}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">{s.itemsCount}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatINR(s.total)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.paymentMethod === 'CASH' ? 'bg-green-50 text-green-700' : s.paymentMethod === 'UPI' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{s.paymentMethod}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{s.staffName}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">{s.status}</span>
+                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => handleDelete(s, e)}
+                          className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                          title="Delete sale and return items to inventory"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

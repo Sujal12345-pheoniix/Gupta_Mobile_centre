@@ -251,78 +251,10 @@ export class StoreService {
     }));
 
     // 7. Fetch Repair Jobs from Neon PostgreSQL
-    let repairsDb = await this.prisma.repairJob.findMany({
+    const repairsDb = await this.prisma.repairJob.findMany({
       where: { branchId: branch.id },
       orderBy: { createdAt: 'desc' },
     });
-
-    if (repairsDb.length === 0) {
-      const initialRepairs = [
-        {
-          ticketNumber: 'GMC-REP-101',
-          customerName: 'Rahul Sharma',
-          customerPhone: '9876501234',
-          deviceModel: 'iPhone 13',
-          issue: 'Shattered OLED Screen Replacement',
-          estimatedCost: new Prisma.Decimal(7500),
-          advancePaid: new Prisma.Decimal(2000),
-          status: RepairStatus.READY,
-          technicianName: 'Amit Verma',
-          partsUsed: 'Original iPhone 13 OLED Display',
-        },
-        {
-          ticketNumber: 'GMC-REP-102',
-          customerName: 'Sunita Devi',
-          customerPhone: '9822114433',
-          deviceModel: 'Samsung Galaxy A54',
-          issue: 'Battery drains within 2 hours',
-          estimatedCost: new Prisma.Decimal(2200),
-          advancePaid: new Prisma.Decimal(500),
-          status: RepairStatus.IN_REPAIR,
-          technicianName: 'Amit Verma',
-          partsUsed: 'Samsung A54 5000mAh Battery',
-        },
-        {
-          ticketNumber: 'GMC-REP-103',
-          customerName: 'Deepak Kumar',
-          customerPhone: '9811447722',
-          deviceModel: 'OnePlus Nord CE3',
-          issue: 'Loose charging port / No fast charge',
-          estimatedCost: new Prisma.Decimal(1200),
-          advancePaid: new Prisma.Decimal(0),
-          status: RepairStatus.WAITING_PARTS,
-          technicianName: 'Amit Verma',
-          partsUsed: 'OnePlus Sub-board Port',
-        },
-        {
-          ticketNumber: 'GMC-REP-104',
-          customerName: 'Ankit Verma',
-          customerPhone: '9877112233',
-          deviceModel: 'Vivo V29',
-          issue: 'Water damage, camera lens foggy',
-          estimatedCost: new Prisma.Decimal(3500),
-          advancePaid: new Prisma.Decimal(1000),
-          status: RepairStatus.DIAGNOSING,
-          technicianName: 'Amit Verma',
-          partsUsed: null,
-        },
-      ];
-
-      for (const r of initialRepairs) {
-        await this.prisma.repairJob.create({
-          data: {
-            organizationId: org.id,
-            branchId: branch.id,
-            ...r,
-          },
-        });
-      }
-
-      repairsDb = await this.prisma.repairJob.findMany({
-        where: { branchId: branch.id },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
 
     const repairs = repairsDb.map((rj) => ({
       id: rj.id,
