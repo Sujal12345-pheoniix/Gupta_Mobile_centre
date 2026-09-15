@@ -250,6 +250,8 @@ export class StoreService {
       itemsCount: p.items.reduce((sum, i) => sum + Number(i.quantity), 0),
     }));
 
+    const settings = await this.getSettings();
+
     return {
       products,
       customers,
@@ -258,6 +260,7 @@ export class StoreService {
       sales,
       suppliers,
       purchases,
+      settings,
     };
   }
 
@@ -869,6 +872,123 @@ export class StoreService {
     });
 
     this.logger.log(`✓ Sale ${sale.invoiceNumber} deleted and stock restored`);
+    return { success: true };
+  }
+
+  /**
+   * GET STORE SETTINGS from Neon PostgreSQL
+   */
+  async getSettings() {
+    const { org, branch } = await this.getOrCreateOrgAndBranch();
+    const addr = (branch.address as any) || {};
+
+    return {
+      name: org.name,
+      currency: org.currency || 'INR',
+      timezone: org.timezone || 'Asia/Kolkata',
+      gstin: addr.gstin || '06ABCDE1234F1Z5',
+      phone: addr.phone || '9876543210',
+      email: addr.email || 'gupta.mobile@gmail.com',
+      address: addr.address || 'Shop No. 14, Main Market, Gurgaon - 122001, Haryana',
+      invoicePrefix: addr.invoicePrefix || 'GMC',
+    };
+  }
+
+  /**
+   * UPDATE STORE SETTINGS in Neon PostgreSQL
+   */
+  async updateSettings(dto: {
+    name?: string;
+    currency?: string;
+    timezone?: string;
+    gstin?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    invoicePrefix?: string;
+  }) {
+    const { org, branch } = await this.getOrCreateOrgAndBranch();
+
+    // 1. Update Organization
+    if (dto.name || dto.currency || dto.timezone) {
+      await this.prisma.organization.update({
+        where: { id: org.id },
+        data: {
+          name: dto.name || undefined,
+          currency: dto.currency || undefined,
+          timezone: dto.timezone || undefined,
+        },
+      });
+    }
+
+    // 2. Update Branch Address JSON
+    const currentAddr = (branch.address as any) || {};
+    const updatedAddr = {
+      ...currentAddr,
+      gstin: dto.gstin !== undefined ? dto.gstin : currentAddr.gstin || '06ABCDE1234F1Z5',
+      phone: dto.phone !== undefined ? dto.phone : currentAddr.phone || '9876543210',
+      email: dto.email !== undefined ? dto.email : currentAddr.email || 'gupta.mobile@gmail.com',
+      address: dto.address !== undefined ? dto.address : currentAddr.address || 'Shop No. 14, Main Market, Gurgaon - 122001, Haryana',
+      invoicePrefix: dto.invoicePrefix !== undefined ? dto.invoicePrefix : currentAddr.invoicePrefix || 'GMC',
+    };
+
+    await this.prisma.branch.update({
+      where: { id: branch.id },
+      data: {
+        address: updatedAddr,
+        name: dto.name ? `${dto.name} - Head Office` : undefined,
+      },
+    });
+
+    this.logger.log(`✓ Store settings updated in PostgreSQL: ${dto.name || org.name}`);
+    return this.getSettings();
+  }
+
+  /**
+   * GET ROLES from Neon PostgreSQL
+   */
+  async getRoles() {
+    const rolesDb = await this.prisma.role.findMany({
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    if (rolesDb.length === 0) {
+      return [
+        { name: 'Admin', description: 'Full administrative control across Gupta Mobile Centre', permissions: ['Full administrative control', 'Manage catalog, pricing & stock thresholds', 'Process POS sales & approve returns', 'Manage staff, attendance & view payroll calculations', 'Access all financial reports & store settings'], color: 'bg-purple-100 text-purple-700' },
+        { name: 'Manager', description: 'Inventory & store operations management', permissions: ['Inventory management & stock adjustments', 'Process POS sales & order receipts', 'Manage customer accounts & suppliers', 'View store reports', 'Restricted: Cannot delete records or modify store payroll/settings'], color: 'bg-blue-100 text-blue-700' },
+        { name: 'Staff', description: 'Counter staff and POS checkout', permissions: ['Process sales via Point of Sale (POS)', 'Record real-time stock deduction on customer checkout', 'Search products & check stock availability', 'Restricted: No access to store financial margins, reports, or payroll'], color: 'bg-green-100 text-green-700' },
+        { name: 'Technician', description: 'Mobile hardware & repair technician', permissions: ['View and update mobile repair job orders', 'Check and record spare parts used in repairs', 'Restricted: No access to store revenue or employee payroll'], color: 'bg-orange-100 text-orange-700' },
+      ];
+    }
+
+    return rolesDb.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description || '',
+      permissions: r.permissions.map((p) => p.permission.description || p.permission.key),
+    }));
+  }
+
+  /**
+   * UPDATE ROLE in Neon PostgreSQL
+   */
+  async updateRole(id: string, dto: { description?: string; permissions?: string[] }) {
+    const role = await this.prisma.role.findFirst({
+      where: { OR: [{ id }, { name: id }] },
+    });
+
+    if (role && dto.description) {
+      await this.prisma.role.update({
+        where: { id: role.id },
+        data: { description: dto.description },
+      });
+    }
+
     return { success: true };
   }
 }

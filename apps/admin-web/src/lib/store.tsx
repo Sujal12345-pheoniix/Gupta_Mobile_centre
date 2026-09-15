@@ -68,6 +68,21 @@ interface StoreContextType {
   isDbConnected: boolean;
   refreshFromDb: () => Promise<void>;
   resetToDefaultData: () => void;
+
+  // Settings
+  settings: StoreSettings;
+  updateSettings: (newSettings: Partial<StoreSettings>) => Promise<boolean>;
+}
+
+export interface StoreSettings {
+  name: string;
+  gstin: string;
+  phone: string;
+  email: string;
+  address: string;
+  currency: string;
+  timezone: string;
+  invoicePrefix: string;
 }
 
 const STORAGE_KEY = 'gupta_mobile_store_v2';
@@ -117,6 +132,17 @@ const DEFAULT_MOVEMENTS: StockMovementItem[] = [
   { id: 'sm-3', date: '2026-09-10 11:15 AM', sku: 'CAB-CC-65W', productName: 'Type-C to Type-C 65W Braided Fast Cable', type: 'SALE', quantity: -2, reason: 'Invoice GMC-1002', actor: 'Rohan Sharma' }
 ];
 
+const DEFAULT_SETTINGS: StoreSettings = {
+  name: 'Gupta Mobile Centre',
+  gstin: '06ABCDE1234F1Z5',
+  phone: '9876543210',
+  email: 'gupta.mobile@gmail.com',
+  address: 'Shop No. 14, Main Market, Gurgaon - 122001, Haryana',
+  currency: 'INR',
+  timezone: 'Asia/Kolkata',
+  invoicePrefix: 'GMC',
+};
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -128,6 +154,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [repairs, setRepairs] = useState<RepairJob[]>(DEFAULT_REPAIRS);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
+  const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
@@ -158,6 +185,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         if (res.data.purchases) {
           setPurchases(res.data.purchases);
+        }
+        if (res.data.settings) {
+          setSettings(res.data.settings);
         }
       }
     } catch (err) {
@@ -661,6 +691,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateSettings = async (newSettings: Partial<StoreSettings>): Promise<boolean> => {
+    setSettings(prev => ({ ...prev, ...newSettings }));
+    try {
+      const res = await api.updateSettings(newSettings);
+      if (res.success && res.data) {
+        setSettings(res.data);
+        setIsDbConnected(true);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Database update settings failed, updated locally:', err);
+    }
+    return false;
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -694,7 +739,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateRepairStatus,
         isDbConnected,
         refreshFromDb,
-        resetToDefaultData
+        resetToDefaultData,
+        settings,
+        updateSettings
       }}
     >
       {children}

@@ -8,11 +8,47 @@ export class StoreController {
 
   /**
    * GET /api/v1/store/data
-   * Fetches all products, customers, employees, movements, and sales from PostgreSQL
+   * Fetches all products, customers, employees, movements, sales, suppliers, purchases, and settings from PostgreSQL
    */
   @Get('data')
   async getStoreData() {
     const data = await this.storeService.getStoreData();
+    return { success: true, data };
+  }
+
+  /**
+   * GET /api/v1/store/settings
+   */
+  @Get('settings')
+  async getSettings() {
+    const data = await this.storeService.getSettings();
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /api/v1/store/settings
+   */
+  @Patch('settings')
+  async updateSettings(@Body() dto: any) {
+    const data = await this.storeService.updateSettings(dto);
+    return { success: true, data };
+  }
+
+  /**
+   * GET /api/v1/store/roles
+   */
+  @Get('roles')
+  async getRoles() {
+    const data = await this.storeService.getRoles();
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /api/v1/store/roles/:id
+   */
+  @Patch('roles/:id')
+  async updateRole(@Param('id') id: string, @Body() dto: any) {
+    const data = await this.storeService.updateRole(id, dto);
     return { success: true, data };
   }
 

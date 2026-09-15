@@ -251,6 +251,22 @@ class ApiClient {
   async markPurchaseReceived(id: string): Promise<ApiResponse<any>> {
     return this.request<any>('PATCH', `/store/purchases/${id}/receive`, undefined, { authenticated: false });
   }
+
+  async getSettings(): Promise<ApiResponse<any>> {
+    return this.request<any>('GET', '/store/settings', undefined, { authenticated: false });
+  }
+
+  async updateSettings(dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', '/store/settings', dto, { authenticated: false });
+  }
+
+  async getRoles(): Promise<ApiResponse<any>> {
+    return this.request<any>('GET', '/store/roles', undefined, { authenticated: false });
+  }
+
+  async updateRole(id: string, dto: any): Promise<ApiResponse<any>> {
+    return this.request<any>('PATCH', `/store/roles/${id}`, dto, { authenticated: false });
+  }
 }
 
 export const api = new ApiClient();
