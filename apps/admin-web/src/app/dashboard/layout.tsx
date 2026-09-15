@@ -141,8 +141,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <main className="lg:pl-60 pt-14 lg:pt-0">
-        <div className="p-4 sm:p-6">{children}</div>
+      <main className="lg:pl-60 pt-14 lg:pt-0 min-w-0 max-w-full overflow-x-hidden">
+        <div className="p-3.5 sm:p-6 min-w-0 max-w-full">{children}</div>
       </main>
 
       {/* Mobile overlay */}

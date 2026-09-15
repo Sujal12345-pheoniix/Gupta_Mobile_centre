@@ -127,125 +127,127 @@ export default function RepairsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5 min-w-0 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-orange-800 to-amber-900 rounded-2xl p-5 text-white shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-gradient-to-r from-orange-800 to-amber-900 rounded-2xl p-4 sm:p-5 text-white shadow-md min-w-0">
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-amber-200 text-xs font-semibold uppercase tracking-wider mb-2 border border-white/10">
             Service Centre Management
           </div>
           <h1 className="text-xl sm:text-2xl font-bold">Repair Centre Control & Financials</h1>
-          <p className="text-amber-200 text-sm mt-0.5">Revenue · Profit Margins · Technician Commissions · Pipeline</p>
+          <p className="text-amber-200 text-xs sm:text-sm mt-0.5">Revenue · Profit Margins · Technician Commissions · Pipeline</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2.5 bg-white text-amber-900 rounded-xl text-sm font-bold hover:bg-amber-50 transition shadow flex-shrink-0"
+          className="w-full sm:w-auto px-4 py-2.5 bg-white text-amber-900 rounded-xl text-sm font-bold hover:bg-amber-50 transition shadow flex-shrink-0 text-center"
         >
           + New Repair Job Card
         </button>
       </div>
 
       {/* Financial Health Overview Bar (Requested by user) */}
-      <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-2xl border shadow-sm p-4 sm:p-5 space-y-3 sm:space-y-4 min-w-0 max-w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
           <div>
-            <h2 className="font-bold text-gray-900 text-base">Service Centre Financial Breakdown</h2>
+            <h2 className="font-bold text-gray-900 text-sm sm:text-base">Service Centre Financial Breakdown</h2>
             <p className="text-xs text-gray-500">Realized earnings from completed & delivered repairs</p>
           </div>
-          <div className="inline-flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border self-start sm:self-auto">
             <span>Completed Tickets: <strong>{completedRepairs.length}</strong></span>
             <span>·</span>
             <span>Active Bench: <strong>{activeRepairs.length}</strong></span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="bg-green-50/70 border border-green-200/60 rounded-xl p-3.5">
-            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">Total Repair Revenue</p>
-            <p className="text-2xl font-black text-green-700 mt-1">{formatINR(totalRepairRevenue)}</p>
-            <p className="text-[11px] text-green-700/80 mt-0.5">Billed service charges</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 min-w-0">
+          <div className="bg-green-50/70 border border-green-200/60 rounded-xl p-3 sm:p-3.5 min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-green-800 uppercase tracking-wide truncate">Total Revenue</p>
+            <p className="text-xl sm:text-2xl font-black text-green-700 mt-1 truncate">{formatINR(totalRepairRevenue)}</p>
+            <p className="text-[10px] sm:text-[11px] text-green-700/80 mt-0.5 truncate">Billed service charges</p>
           </div>
 
-          <div className="bg-orange-50/70 border border-orange-200/60 rounded-xl p-3.5">
-            <p className="text-xs font-semibold text-orange-800 uppercase tracking-wide">Parts Consumed</p>
-            <p className="text-2xl font-black text-orange-700 mt-1">{formatINR(totalPartsCost)}</p>
-            <p className="text-[11px] text-orange-700/80 mt-0.5">Screens, batteries & flex</p>
+          <div className="bg-orange-50/70 border border-orange-200/60 rounded-xl p-3 sm:p-3.5 min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-orange-800 uppercase tracking-wide truncate">Parts Consumed</p>
+            <p className="text-xl sm:text-2xl font-black text-orange-700 mt-1 truncate">{formatINR(totalPartsCost)}</p>
+            <p className="text-[10px] sm:text-[11px] text-orange-700/80 mt-0.5 truncate">Screens, batteries & flex</p>
           </div>
 
-          <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-3.5">
-            <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">Gross Margin</p>
-            <p className="text-2xl font-black text-blue-700 mt-1">{formatINR(grossProfit)}</p>
-            <p className="text-[11px] text-blue-700/80 mt-0.5">{grossMarginPct}% gross margin</p>
+          <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-3 sm:p-3.5 min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-blue-800 uppercase tracking-wide truncate">Gross Margin</p>
+            <p className="text-xl sm:text-2xl font-black text-blue-700 mt-1 truncate">{formatINR(grossProfit)}</p>
+            <p className="text-[10px] sm:text-[11px] text-blue-700/80 mt-0.5 truncate">{grossMarginPct}% gross margin</p>
           </div>
 
-          <div className="bg-purple-50/70 border border-purple-200/60 rounded-xl p-3.5">
-            <p className="text-xs font-semibold text-purple-800 uppercase tracking-wide">Tech Commissions</p>
-            <p className="text-2xl font-black text-purple-700 mt-1">{formatINR(totalCommissions)}</p>
-            <p className="text-[11px] text-purple-700/80 mt-0.5">5.0% incentive payable</p>
+          <div className="bg-purple-50/70 border border-purple-200/60 rounded-xl p-3 sm:p-3.5 min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-purple-800 uppercase tracking-wide truncate">Commissions</p>
+            <p className="text-xl sm:text-2xl font-black text-purple-700 mt-1 truncate">{formatINR(totalCommissions)}</p>
+            <p className="text-[10px] sm:text-[11px] text-purple-700/80 mt-0.5 truncate">5.0% incentive payable</p>
           </div>
 
-          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3.5 col-span-2 sm:col-span-1">
-            <p className="text-xs font-semibold text-emerald-900 uppercase tracking-wide">Shop Net Profit</p>
-            <p className="text-2xl font-black text-emerald-700 mt-1">{formatINR(netProfit)}</p>
-            <p className="text-[11px] text-emerald-800 font-semibold mt-0.5">{netMarginPct}% net margin</p>
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 sm:p-3.5 col-span-2 sm:col-span-1 min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-emerald-900 uppercase tracking-wide truncate">Shop Net Profit</p>
+            <p className="text-xl sm:text-2xl font-black text-emerald-700 mt-1 truncate">{formatINR(netProfit)}</p>
+            <p className="text-[10px] sm:text-[11px] text-emerald-800 font-semibold mt-0.5 truncate">{netMarginPct}% net margin</p>
           </div>
         </div>
 
         {/* Accounting Calculation Formula Explanation Box */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0 break-words">
+          <div className="min-w-0 break-words leading-relaxed">
             <strong className="text-slate-800">Accounting Formula:</strong> Gross Profit = Repair Revenue ({formatINR(totalRepairRevenue)}) − Spare Parts Cost ({formatINR(totalPartsCost)}) = <span className="font-semibold text-blue-700">{formatINR(grossProfit)}</span>. Net Profit = Gross Profit − Tech Commissions ({formatINR(totalCommissions)}) = <span className="font-semibold text-emerald-700">{formatINR(netProfit)}</span>.
           </div>
-          <span className="text-[11px] text-slate-500 whitespace-nowrap">Advance Held: {formatINR(totalAdvanceCollected)}</span>
+          <span className="text-[11px] text-slate-500 whitespace-nowrap flex-shrink-0 self-start sm:self-auto">Advance Held: {formatINR(totalAdvanceCollected)}</span>
         </div>
       </div>
 
       {/* Operational KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Active Bench Jobs</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">{activeRepairs.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Currently being serviced</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 min-w-0">
+        <div className="bg-white rounded-xl p-3.5 sm:p-4 border shadow-sm min-w-0">
+          <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase truncate">Active Bench</p>
+          <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1 truncate">{activeRepairs.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">Currently in service</p>
         </div>
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Awaiting Spare Parts</p>
-          <p className="text-2xl font-bold text-orange-500 mt-1">{partsNeeded.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Blocked until stock arrives</p>
+        <div className="bg-white rounded-xl p-3.5 sm:p-4 border shadow-sm min-w-0">
+          <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase truncate">Awaiting Parts</p>
+          <p className="text-xl sm:text-2xl font-bold text-orange-500 mt-1 truncate">{partsNeeded.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">Blocked for parts</p>
         </div>
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Repaired & Ready</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{repairs.filter(r => r.status === 'READY').length}</p>
-          <p className="text-xs text-gray-400 mt-1">Awaiting customer collection</p>
+        <div className="bg-white rounded-xl p-3.5 sm:p-4 border shadow-sm min-w-0">
+          <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase truncate">Repaired & Ready</p>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1 truncate">{repairs.filter(r => r.status === 'READY').length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">Ready for pickup</p>
         </div>
-        <div className={`rounded-xl p-4 border shadow-sm ${pendingCollection > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white'}`}>
-          <p className="text-xs font-semibold text-gray-500 uppercase">Pending Collection</p>
-          <p className={`text-2xl font-bold mt-1 ${pendingCollection > 0 ? 'text-amber-700' : 'text-gray-900'}`}>{formatINR(pendingCollection)}</p>
-          <p className="text-xs text-gray-400 mt-1">Balance due on ready devices</p>
+        <div className={`rounded-xl p-3.5 sm:p-4 border shadow-sm min-w-0 ${pendingCollection > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white'}`}>
+          <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase truncate">Pending Due</p>
+          <p className={`text-xl sm:text-2xl font-bold mt-1 truncate ${pendingCollection > 0 ? 'text-amber-700' : 'text-gray-900'}`}>{formatINR(pendingCollection)}</p>
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">Due on ready devices</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit overflow-x-auto">
-        {([
-          { key: 'pipeline',   label: 'Pipeline View' },
-          { key: 'all',        label: `All Jobs (${repairs.length})` },
-          { key: 'financials', label: 'Financial Audit' },
-          { key: 'parts',      label: `Parts Requests (${partsNeeded.length})` },
-          { key: 'delivered',  label: 'Delivered' },
-        ] as { key: Tab; label: string }[]).map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs (Responsive horizontal swipe container without overflowing page width) */}
+      <div className="w-full max-w-full overflow-x-auto pb-1 scrollbar-none">
+        <div className="inline-flex gap-1 bg-gray-100 rounded-xl p-1 min-w-max">
+          {([
+            { key: 'pipeline',   label: 'Pipeline View' },
+            { key: 'all',        label: `All Jobs (${repairs.length})` },
+            { key: 'financials', label: 'Financial Audit' },
+            { key: 'parts',      label: `Parts Requests (${partsNeeded.length})` },
+            { key: 'delivered',  label: 'Delivered' },
+          ] as { key: Tab; label: string }[]).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* --- PIPELINE TAB --- */}
       {tab === 'pipeline' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 min-w-0 max-w-full">
           {PIPELINE_STAGES.map(stage => {
             const cfg = STATUS_CONFIG[stage];
             const jobs = repairs.filter(r => r.status === stage);
@@ -309,19 +311,19 @@ export default function RepairsPage() {
 
       {/* --- FINANCIAL AUDIT TAB (New) --- */}
       {tab === 'financials' && (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b flex items-center justify-between">
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden min-w-0 max-w-full">
+          <div className="p-4 sm:px-5 sm:py-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h3 className="font-bold text-gray-900 text-sm">Ticket-Level Repair Margin & Profit Breakdown</h3>
               <p className="text-xs text-gray-500">Revenue, hardware parts cost, commissions, and net profit per ticket</p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-xs text-gray-500">Total Net Profit</p>
-              <p className="text-lg font-black text-emerald-700">{formatINR(netProfit)} ({netMarginPct}%)</p>
+              <p className="text-base sm:text-lg font-black text-emerald-700">{formatINR(netProfit)} ({netMarginPct}%)</p>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto min-w-0 max-w-full">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
@@ -379,26 +381,26 @@ export default function RepairsPage() {
 
       {/* --- ALL JOBS TAB --- */}
       {tab === 'all' && (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b bg-gray-50 flex flex-wrap gap-3 items-center">
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden min-w-0 max-w-full">
+          <div className="p-3 sm:px-5 sm:py-3 border-b bg-gray-50 flex flex-wrap gap-2.5 sm:gap-3 items-center">
             <div>
               <label className="text-xs font-semibold text-gray-500 mr-1.5">Technician:</label>
-              <select className="text-sm border rounded-lg px-2 py-1" value={filterTech} onChange={e => setFilterTech(e.target.value)}>
+              <select className="text-xs sm:text-sm border rounded-lg px-2 py-1 bg-white" value={filterTech} onChange={e => setFilterTech(e.target.value)}>
                 <option value="ALL">All Technicians</option>
                 {technicians.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 mr-1.5">Status:</label>
-              <select className="text-sm border rounded-lg px-2 py-1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <select className="text-xs sm:text-sm border rounded-lg px-2 py-1 bg-white" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 <option value="ALL">All Statuses</option>
                 {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <span className="ml-auto text-xs text-gray-500">{filteredRepairs.length} jobs</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto min-w-0 max-w-full">
+            <table className="w-full min-w-[700px] text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
@@ -461,9 +463,9 @@ export default function RepairsPage() {
 
       {/* --- SPARE PARTS REQUESTS TAB --- */}
       {tab === 'parts' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b bg-orange-50">
+        <div className="space-y-4 min-w-0 max-w-full">
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden min-w-0 max-w-full">
+            <div className="p-3.5 sm:px-5 sm:py-3.5 border-b bg-orange-50">
               <h3 className="font-semibold text-gray-900 text-sm">Jobs Blocked — Waiting for Spare Parts</h3>
               <p className="text-xs text-gray-500">These repair jobs cannot proceed until parts arrive</p>
             </div>
@@ -472,23 +474,23 @@ export default function RepairsPage() {
             ) : (
               <div className="divide-y">
                 {partsNeeded.map(job => (
-                  <div key={job.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50">
-                    <div>
+                  <div key={job.id} className="p-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-mono text-xs font-bold text-blue-700">{job.ticketNumber}</span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">Waiting Parts</span>
                       </div>
-                      <p className="font-bold text-gray-900">{job.deviceModel} — {job.customerName}</p>
+                      <p className="font-bold text-gray-900 text-sm">{job.deviceModel} — {job.customerName}</p>
                       <p className="text-xs text-gray-500 mt-0.5">Issue: {job.issue}</p>
                       {job.partsUsed && <p className="text-xs text-blue-700 mt-0.5 font-medium">Parts noted: {job.partsUsed}</p>}
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0">
                       <span className="text-xs text-gray-500">Tech: <span className="font-semibold text-gray-800">{job.technicianName}</span></span>
                       <button
                         onClick={() => updateRepairStatus(job.id, 'IN_REPAIR')}
                         className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition"
                       >
-                        Parts Arrived — Start Repair
+                        Parts In — Start
                       </button>
                     </div>
                   </div>
@@ -497,16 +499,16 @@ export default function RepairsPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b">
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden min-w-0 max-w-full">
+            <div className="p-3.5 sm:px-5 sm:py-3.5 border-b">
               <h3 className="font-semibold text-gray-900 text-sm">Available Spare Parts in Inventory</h3>
               <p className="text-xs text-gray-500">Displays, batteries, cables and connectors in stock</p>
             </div>
             {spareParts.length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-sm">No spare parts in inventory. Add them from the Products page.</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto min-w-0 max-w-full">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Part Name</th>
@@ -544,8 +546,8 @@ export default function RepairsPage() {
 
       {/* --- DELIVERED TAB --- */}
       {tab === 'delivered' && (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-3.5 border-b">
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden min-w-0 max-w-full">
+          <div className="p-3.5 sm:px-5 sm:py-3.5 border-b">
             <h3 className="font-semibold text-gray-900 text-sm">Delivered Repairs — History</h3>
             <p className="text-xs text-gray-500">All completed and delivered repair jobs</p>
           </div>
@@ -553,18 +555,18 @@ export default function RepairsPage() {
             {repairs.filter(r => r.status === 'DELIVERED').length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-sm">No delivered repairs yet.</div>
             ) : repairs.filter(r => r.status === 'DELIVERED').map(job => (
-              <div key={job.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div>
+              <div key={job.id} className="p-3.5 sm:px-5 sm:py-4 flex items-center justify-between hover:bg-gray-50 min-w-0">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs font-bold text-blue-700">{job.ticketNumber}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">Delivered</span>
                   </div>
-                  <p className="font-medium text-gray-900">{job.deviceModel} — {job.customerName}</p>
-                  <p className="text-xs text-gray-500">{job.issue} · Tech: {job.technicianName}</p>
+                  <p className="font-medium text-gray-900 text-sm truncate">{job.deviceModel} — {job.customerName}</p>
+                  <p className="text-xs text-gray-500 truncate">{job.issue} · Tech: {job.technicianName}</p>
                   {job.deliveredAt && <p className="text-xs text-gray-400 mt-0.5">Delivered: {job.deliveredAt}</p>}
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-900">{formatINR(job.estimatedCost)}</p>
+                <div className="text-right flex-shrink-0 ml-3">
+                  <p className="font-bold text-gray-900 text-sm sm:text-base">{formatINR(job.estimatedCost)}</p>
                   <p className="text-xs text-gray-400">Advance: {formatINR(job.advancePaid)}</p>
                 </div>
               </div>
@@ -575,11 +577,11 @@ export default function RepairsPage() {
 
       {/* --- NEW JOB MODAL --- */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto min-w-0">
+            <div className="px-5 sm:px-6 py-4 border-b flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">New Repair Job Card</h3>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">New Repair Job Card</h3>
                 <p className="text-xs text-gray-500">Assign a device to a technician for repair</p>
               </div>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
