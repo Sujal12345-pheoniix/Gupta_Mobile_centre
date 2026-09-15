@@ -16,15 +16,16 @@ interface NavItem {
 const ALL_ROLES = ['Admin', 'Manager', 'Staff', 'Technician'];
 
 const navItems: NavItem[] = [
-  { href: '/dashboard',            label: 'Dashboard',  icon: 'DB', roles: ALL_ROLES },
-  { href: '/dashboard/products',   label: 'Products',   icon: 'PR', roles: ALL_ROLES },
-  { href: '/dashboard/inventory',  label: 'Inventory',  icon: 'IN', roles: ALL_ROLES },
+  { href: '/dashboard',            label: 'Dashboard',   icon: 'DB',  roles: ALL_ROLES },
+  { href: '/dashboard/products',   label: 'Products',    icon: 'PR',  roles: ALL_ROLES },
+  { href: '/dashboard/inventory',  label: 'Inventory',   icon: 'IN',  roles: ALL_ROLES },
+  { href: '/dashboard/repairs',    label: 'Repairs',     icon: 'RC',  roles: ['Admin', 'Manager'] },
   { href: '/dashboard/sales',      label: 'Sales / POS', icon: 'POS', roles: ['Admin', 'Manager', 'Staff'] },
-  { href: '/dashboard/purchases',  label: 'Purchases',  icon: 'PO', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/customers',  label: 'Customers',  icon: 'CU', roles: ['Admin', 'Manager', 'Staff'] },
-  { href: '/dashboard/employees',  label: 'Employees',  icon: 'HR', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/reports',    label: 'Reports',    icon: 'RP', roles: ['Admin', 'Manager'] },
-  { href: '/dashboard/settings',   label: 'Settings',   icon: 'ST', roles: ['Admin'] },
+  { href: '/dashboard/purchases',  label: 'Purchases',   icon: 'PO',  roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/customers',  label: 'Customers',   icon: 'CU',  roles: ['Admin', 'Manager', 'Staff'] },
+  { href: '/dashboard/employees',  label: 'Employees',   icon: 'HR',  roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/reports',    label: 'Reports',     icon: 'RP',  roles: ['Admin', 'Manager'] },
+  { href: '/dashboard/settings',   label: 'Settings',    icon: 'ST',  roles: ['Admin'] },
 ];
 
 const roleColors: Record<string, string> = {
